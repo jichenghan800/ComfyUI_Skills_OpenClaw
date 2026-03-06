@@ -49,4 +49,4 @@ Contributions are welcome after the first stable invocation path is published.
 
 ## License
 
-To be decided in the first implementation milestone.
+MIT License.
