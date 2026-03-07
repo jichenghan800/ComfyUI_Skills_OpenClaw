@@ -2,7 +2,7 @@
 
 <p>
   <a href="./README.zh.md">
-    <img src="https://img.shields.io/badge/中文文档-README.zh.md-blue?style=flat-square" alt="中文文档" />
+    <img src="https://img.shields.io/badge/简体中文-README.zh.md-blue?style=flat-square" alt="简体中文" />
   </a>
 </p>
 
