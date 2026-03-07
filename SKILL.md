@@ -10,7 +10,7 @@ description: |
 
 # ComfyUI Agent SKILL
 
-## 🚨 Core Execution Specification
+## Core Execution Specification
 
 As an OpenClaw Agent equipped with the ComfyUI skill, your objective is to translate the user's conversational requests into strict, structured parameters and hand them over to the underlying Python scripts to execute workflows.
 
@@ -52,7 +52,7 @@ python ./scripts/comfyui_client.py --workflow <workflow_id> --args '{"key1": "va
 
 Once you obtain the absolute local path to the generated image, use your native capabilities to present the file to the user (e.g., in an OpenClaw environment, returning the path allows the client to intercept it and convert it into rich text or an image preview).
 
-## 🔧 Common Troubleshooting & Notices
+## Common Troubleshooting & Notices
 1. **ComfyUI Offline**: If the script returns "Error connecting to ComfyUI", remind the user to check if the ComfyUI service is running, or go to the Web UI panel (start with `python3 ui/app.py`) to configure the correct `comfyui_server_url`.
 2. **Schema Not Found**: If you directly called a workflow the user mentioned verbally, but the script reports a missing Schema, perform Step 1 `registry.py` and tell the user they need to first go to the Web UI panel to "upload and configure the mapping for that workflow".
 3. **Parameter Format Error**: Ensure that the JSON passed via `--args` is a valid JSON string wrapped in single quotes.

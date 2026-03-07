@@ -51,7 +51,7 @@ ComfyUI_Skills_OpenClaw/
 
 ## 环境要求
 
-- Python 3.8+
+- Python 3.10+
 - 正在运行的 ComfyUI 服务（默认：`http://127.0.0.1:8188`）
 
 安装依赖：

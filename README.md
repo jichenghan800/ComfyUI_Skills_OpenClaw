@@ -56,7 +56,7 @@ ComfyUI_Skills_OpenClaw/
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - A running ComfyUI server (default: `http://127.0.0.1:8188`)
 
 Install dependencies:
