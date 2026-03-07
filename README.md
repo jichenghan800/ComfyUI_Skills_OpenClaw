@@ -1,8 +1,8 @@
 # ComfyUI Skills for OpenClaw
 
 <p>
-  <a href="./README.zh-CN.md">
-    <img src="https://img.shields.io/badge/中文文档-README.zh--CN.md-blue?style=flat-square" alt="中文文档" />
+  <a href="./README.zh.md">
+    <img src="https://img.shields.io/badge/中文文档-README.zh.md-blue?style=flat-square" alt="中文文档" />
   </a>
 </p>
 
@@ -17,7 +17,8 @@ It converts natural language requests into structured skill arguments, maps them
 ```text
 ComfyUI_Skills_OpenClaw/
 ├── SKILL.md                    # Agent instruction spec (how to call registry/client)
-├── README.md
+├── README.md                   # 英文主页
+├── README.zh.md                # 中文说明
 ├── LICENSE
 ├── .gitignore
 ├── requirements.txt            # Python deps (FastAPI, requests, etc.)

@@ -12,7 +12,7 @@
 ComfyUI_Skills_OpenClaw/
 ├── SKILL.md                    # Agent 指令规范（如何调用 registry/client）
 ├── README.md                   # 英文主页
-├── README.zh-CN.md             # 中文说明
+├── README.zh.md                # 中文说明
 ├── LICENSE
 ├── .gitignore
 ├── requirements.txt            # Python 依赖（FastAPI、requests 等）
