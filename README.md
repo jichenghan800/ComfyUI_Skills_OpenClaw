@@ -1,5 +1,11 @@
 # ComfyUI Skills for OpenClaw
 
+<p>
+  <a href="./README.zh-CN.md">
+    <img src="https://img.shields.io/badge/中文文档-README.zh--CN.md-blue?style=flat-square" alt="中文文档" />
+  </a>
+</p>
+
 A local bridge that lets OpenClaw (or other LLM agents) run ComfyUI workflows through a stable, schema-driven interface.
 
 It converts natural language into structured workflow args, sends jobs to ComfyUI, waits for completion, then pulls generated images back to local disk.
