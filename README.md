@@ -144,7 +144,7 @@ Use it to configure ComfyUI server URL and manage workflow/schema mapping.
 
 To make OpenClaw pick up this skill in a workspace session, keep it under:
 
-- `<workspace>/skills/comfyui-agent/`
+- `<workspace>/skills/comfyui-skill-openclaw/`
 
 OpenClaw reads `SKILL.md` and then uses:
 - `scripts/registry.py list`

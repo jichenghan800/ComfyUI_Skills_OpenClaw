@@ -139,7 +139,7 @@ python scripts/comfyui_client.py \
 
 要在 OpenClaw 工作区会话中自动识别此 Skill，请放到：
 
-- `<workspace>/skills/comfyui-agent/`
+- `<workspace>/skills/comfyui-skill-openclaw/`
 
 OpenClaw 会读取 `SKILL.md`，并调用：
 - `scripts/registry.py list`
