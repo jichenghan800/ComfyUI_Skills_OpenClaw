@@ -14,6 +14,25 @@ description: |
 
 As an OpenClaw Agent equipped with the ComfyUI skill, your objective is to translate the user's conversational requests into strict, structured parameters and hand them over to the underlying Python scripts to execute workflows.
 
+### Step 0: AI-Native Workflow Auto-Configuration (Optional)
+
+If the user provides you with a new ComfyUI workflow JSON (API format) and asks you to "configure it" or "add it":
+1. Save the provided JSON file to `./data/workflows/<new_workflow_id>.json`.
+2. Analyze the JSON structure (look for `inputs` inside node definitions, e.g., `KSampler`'s `seed`, `CLIPTextEncode`'s `text` for positive/negative prompts, `EmptyLatentImage` for width/height).
+3. Automatically generate a schema mapping file and save it to `./data/schemas/<new_workflow_id>.json`. The schema format must follow:
+   ```json
+   {
+     "workflow_id": "<new_workflow_id>",
+     "description": "Auto-configured by OpenClaw",
+     "enabled": true,
+     "parameters": {
+       "prompt": { "node_id": "3", "field": "text", "required": true, "type": "string", "description": "Positive prompt" }
+       // Add other sensible parameters that the user might want to tweak
+     }
+   }
+   ```
+4. Tell the user that the new workflow `<new_workflow_id>` is successfully configured and ready to be used.
+
 ### Step 1: Query Available Workflows (Registry)
 
 Before attempting to generate any image, you must **first query the registry** to understand which workflows are currently supported and what parameters they require:

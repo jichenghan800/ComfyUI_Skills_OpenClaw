@@ -41,6 +41,7 @@ ComfyUI_Skills_OpenClaw/
 
 ## 这个 Skill 能做什么
 
+- **[AI Native 特性] 零干预工作流自动配置**：直接将导出的工作流 JSON 交给 Agent，它可以自主分析节点、提取参数并直接生成配置 Schema 供后续调度！
 - 发现可用工作流和参数要求（`registry.py`）
 - 按 schema 把参数映射到 ComfyUI 节点输入（`node_id/field`）
 - 通过 ComfyUI HTTP API 提交任务（`/prompt`）

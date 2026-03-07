@@ -46,6 +46,7 @@ ComfyUI_Skills_OpenClaw/
 
 ## What This Skill Can Do
 
+- **[AI-Native Feature] Zero-Touch Auto-Configuration**: Drop a ComfyUI workflow JSON directly to the Agent, and it will autonomously analyze nodes, extract parameters, and generate the schema for you!
 - Discover available workflows and required parameters (`registry.py`)
 - Convert agent/user args into ComfyUI node input values (`schema -> node_id/field` mapping)
 - Queue generation jobs via ComfyUI HTTP API (`/prompt`)
