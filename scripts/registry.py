@@ -19,6 +19,9 @@ def get_workflows():
                 with open(filepath, 'r', encoding='utf-8') as f:
                     schema_data = json.load(f)
                     
+                    if not schema_data.get("enabled", True):
+                        continue
+                    
                     # We only expose the necessary structure to the LLM agent
                     # to keep context usage small.
                     workflow_info = {

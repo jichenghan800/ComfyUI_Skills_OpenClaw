@@ -19,7 +19,6 @@ os.makedirs(SCHEMAS_DIR, exist_ok=True)
 os.makedirs(STATIC_DIR, exist_ok=True)
 
 # Mount static files
-app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR, "assets")), name="assets")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 class ConfigModel(BaseModel):
@@ -30,16 +29,10 @@ class SchemaModel(BaseModel):
     workflow_id: str
     description: str
     workflow_data: dict
-@app.get("/{filename}.svg")
-@app.get("/{filename}.ico")
-@app.get("/{filename}.png")
-async def read_static_file(filename: str, request: Request):
-    ext = os.path.splitext(request.url.path)[1]
-    file_path = os.path.join(STATIC_DIR, f"{filename}{ext}")
-    if os.path.exists(file_path):
-        from fastapi.responses import FileResponse
-        return FileResponse(file_path)
-    raise HTTPException(status_code=404, detail="File not found")
+    schema_params: dict
+
+class ToggleModel(BaseModel):
+    enabled: bool
 
 @app.get("/", response_class=HTMLResponse)
 async def read_index():
@@ -65,7 +58,14 @@ async def list_workflows():
     if os.path.exists(SCHEMAS_DIR):
         for f in os.listdir(SCHEMAS_DIR):
             if f.endswith(".json"):
-                workflows.append(f.replace(".json", ""))
+                wf_id = f.replace(".json", "")
+                try:
+                    with open(os.path.join(SCHEMAS_DIR, f), "r", encoding="utf-8") as schema_file:
+                        schema_data = json.load(schema_file)
+                        enabled = schema_data.get("enabled", True)
+                        workflows.append({"id": wf_id, "enabled": enabled})
+                except Exception:
+                    workflows.append({"id": wf_id, "enabled": True})
     return {"workflows": workflows}
 
 @app.post("/api/workflow/save")
@@ -85,12 +85,29 @@ async def save_workflow(data: SchemaModel):
     schema = {
         "workflow_id": wf_id,
         "description": data.description,
+        "enabled": True,  # newly uploaded are enabled by default
         "parameters": data.schema_params
     }
     with open(schema_path, "w", encoding="utf-8") as f:
         json.dump(schema, f, indent=2)
         
     return {"status": "success", "workflow_id": wf_id}
+
+@app.post("/api/workflow/{wf_id}/toggle")
+async def toggle_workflow(wf_id: str, data: ToggleModel):
+    schema_path = os.path.join(SCHEMAS_DIR, f"{wf_id}.json")
+    if not os.path.exists(schema_path):
+        raise HTTPException(status_code=404, detail="Workflow schema not found")
+        
+    with open(schema_path, "r", encoding="utf-8") as f:
+        schema = json.load(f)
+        
+    schema["enabled"] = data.enabled
+    
+    with open(schema_path, "w", encoding="utf-8") as f:
+        json.dump(schema, f, indent=2)
+        
+    return {"status": "success", "enabled": data.enabled}
 
 @app.delete("/api/workflow/{wf_id}")
 async def delete_workflow(wf_id: str):

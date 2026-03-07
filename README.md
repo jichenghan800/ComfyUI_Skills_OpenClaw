@@ -36,7 +36,7 @@ ComfyUI_Skills_OpenClaw/
 │   ├── run_ui.sh               # Start UI (macOS/Linux)
 │   ├── run_ui.command          # Double-click launcher (macOS)
 │   ├── run_ui.bat              # Launcher (Windows)
-│   └── static/                 # Built frontend assets served by FastAPI
+│   └── static/                 # Pure Vanilla HTML/JS/CSS frontend served by FastAPI
 └── outputs/
     ├── .gitkeep
     └── *.png                   # Generated images

@@ -1,27 +1,35 @@
 {
-    "workflow_id": "test",
-    "description": "测试 LightCCDoubaoImageNode 工作流",
-    "parameters": {
-        "prompt": {
-            "node_id": 10,
-            "field": "prompt",
-            "required": true,
-            "type": "string",
-            "description": "画面正向描述词 (Prompt)"
-        },
-        "size": {
-            "node_id": 10,
-            "field": "size",
-            "required": false,
-            "type": "string",
-            "description": "生成图像尺寸"
-        },
-        "seed": {
-            "node_id": 10,
-            "field": "seed",
-            "required": false,
-            "type": "int",
-            "description": "随机种子"
-        }
+  "workflow_id": "test",
+  "description": "",
+  "enabled": true,
+  "parameters": {
+    "prompt": {
+      "node_id": 10,
+      "field": "prompt",
+      "required": false,
+      "type": "string",
+      "description": ""
+    },
+    "size": {
+      "node_id": 10,
+      "field": "size",
+      "required": false,
+      "type": "string",
+      "description": ""
+    },
+    "num": {
+      "node_id": 10,
+      "field": "num",
+      "required": false,
+      "type": "int",
+      "description": ""
+    },
+    "filename_prefix": {
+      "node_id": 11,
+      "field": "filename_prefix",
+      "required": false,
+      "type": "string",
+      "description": ""
     }
+  }
 }
