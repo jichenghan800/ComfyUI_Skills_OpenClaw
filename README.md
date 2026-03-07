@@ -6,9 +6,9 @@
   </a>
 </p>
 
-A local **ComfyUI Skill bridge** for OpenClaw (and other LLM agents) — this repository is for agent-callable skill integration, not a standalone workflow collection.
+This project is a ComfyUI skill integration layer for OpenClaw and other LLM agents. It turns the workflows you build and export from ComfyUI (API format) into callable skills that agents can trigger with natural language.
 
-It converts natural language into structured skill arguments, maps them to ComfyUI workflow inputs, submits jobs to ComfyUI, waits for completion, then pulls generated images back to local disk.
+It converts natural language requests into structured skill arguments, maps them to ComfyUI workflow inputs, submits jobs to ComfyUI, waits for completion, then pulls generated images back to local disk.
 
 ---
 
