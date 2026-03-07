@@ -1,8 +1,8 @@
 # ComfyUI Skills for OpenClaw（中文说明）
 
-这是一个本地桥接项目，用于让 OpenClaw（或其他 LLM Agent）通过统一、可控的参数映射调用 ComfyUI 工作流。
+这是一个面向 OpenClaw / 其他 Agent 的 ComfyUI Skill 集成层：支持调用你在 ComfyUI 中自行编排并导出（API Format）的 Workflow，将其封装为可被 Agent 通过自然语言触发的 Skills。
 
-它会把自然语言请求转成结构化参数，提交给 ComfyUI 执行，等待任务完成后再把生成图片下载到本地。
+它会把自然语言请求转成结构化的技能参数，映射到 ComfyUI 工作流输入后提交执行，等待任务完成并将生成图片下载到本地。
 
 ---
 
