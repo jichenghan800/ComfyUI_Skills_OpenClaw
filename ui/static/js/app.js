@@ -87,9 +87,7 @@ function refreshServerSelector() {
   elements.serverSelector.empty();
   servers.forEach(s => {
     const selected = s.id === currentId ? "selected" : "";
-    const displayName = s.name && s.name !== s.id
-      ? `${s.name} (${s.id})`
-      : s.id;
+    const displayName = s.name || s.id;
     elements.serverSelector.append(
       `<option value="${escapeHtml(s.id)}" ${selected}>${escapeHtml(displayName)}</option>`,
     );
@@ -133,7 +131,7 @@ function openServerModal(mode = "add") {
     elements.serverModalUrl.val(currentServer.url || "");
     elements.serverModalOutput.val(currentServer.output_dir || "./outputs");
   } else {
-    elements.serverModalIdGroup.addClass("hidden");
+    elements.serverModalIdGroup.removeClass("hidden");
     elements.serverModalId.val("").prop("disabled", false);
     elements.serverModalName.val("");
     elements.serverModalUrl.val("");
@@ -148,7 +146,7 @@ function openServerModal(mode = "add") {
       elements.serverModalName.trigger("focus");
       return;
     }
-    elements.serverModalName.trigger("focus");
+    elements.serverModalId.trigger("focus");
   }, 0);
 }
 
@@ -424,7 +422,8 @@ async function loadServers() {
 async function saveServerFromModal() {
   const currentServer = getCurrentServer();
   const id = elements.serverModalId.val().trim();
-  const name = elements.serverModalName.val().trim() || id;
+  const rawName = elements.serverModalName.val().trim();
+  const name = rawName || id;
   const url = elements.serverModalUrl.val().trim();
   const output_dir = elements.serverModalOutput.val().trim() || "./outputs";
   let createdServerId = null;
@@ -464,6 +463,7 @@ async function saveServerFromModal() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: id || null,
           name,
           url,
           enabled: true,

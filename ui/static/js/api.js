@@ -7,6 +7,17 @@ export async function fetchJSON(url, options = {}) {
   delete headers["Content-Type"];
   delete headers["content-type"];
 
+  function parsePayload(rawPayload) {
+    if (typeof rawPayload !== "string") {
+      return rawPayload;
+    }
+    try {
+      return JSON.parse(rawPayload);
+    } catch {
+      return rawPayload;
+    }
+  }
+
   return new Promise((resolve, reject) => {
     $.ajax({
       url,
@@ -20,8 +31,15 @@ export async function fetchJSON(url, options = {}) {
         resolve(payload);
       },
       error(jqXHR, textStatus) {
-        const payload = jqXHR.responseJSON ?? jqXHR.responseText;
+        const payload = parsePayload(jqXHR.responseJSON ?? jqXHR.responseText);
+        const validationMessage = Array.isArray(payload?.detail)
+          ? payload.detail
+            .map((item) => item?.msg || item?.message)
+            .filter(Boolean)
+            .join("; ")
+          : null;
         const message =
+          validationMessage ||
           (payload && typeof payload === "object" && (payload.detail || payload.message)) ||
           (typeof payload === "string" && payload) ||
           jqXHR.statusText ||
