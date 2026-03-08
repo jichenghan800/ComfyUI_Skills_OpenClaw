@@ -18,30 +18,39 @@ It converts natural language requests into structured skill arguments, maps them
 ```text
 ComfyUI_Skills_OpenClaw/
 ├── SKILL.md                    # Agent instruction spec (how to call registry/client)
-├── README.md                   # 英文主页
-├── README.zh.md                # 中文说明
+├── README.md
+├── README.zh.md
 ├── LICENSE
 ├── .gitignore
 ├── requirements.txt            # Python deps (FastAPI, requests, etc.)
 ├── config.example.json         # Example runtime config
 ├── config.json                 # Actual local runtime config (gitignored)
+├── asset/
+│   └── banner.jpg
 ├── data/
 │   ├── workflows/
-│   │   └── test.json           # ComfyUI workflow API export (current demo workflow)
+│   │   └── <workflow_id>.json  # ComfyUI workflow API export
 │   └── schemas/
-│       └── test.json           # Exposed parameter mapping for workflow "test"
+│       └── <workflow_id>.json  # Exposed parameter mapping
 ├── scripts/
 │   ├── registry.py             # List workflows + exposed parameters for agent
-│   └── comfyui_client.py       # Inject args, queue prompt, poll history, download images
+│   ├── comfyui_client.py       # Inject args, queue prompt, poll history, download images
+│   └── shared/                 # Shared config & JSON utils (reused across scripts)
+│       ├── config.py
+│       ├── json_utils.py
+│       └── runtime_config.py
 ├── ui/
-│   ├── app.py                  # FastAPI app (local dashboard backend)
+│   ├── app.py                  # FastAPI app – routes only
+│   ├── services.py             # Business logic (workflow CRUD)
+│   ├── models.py               # Pydantic request/response models
+│   ├── json_store.py           # Low-level JSON file read/write helpers
+│   ├── settings.py             # App-level settings
 │   ├── run_ui.sh               # Start UI (macOS/Linux)
 │   ├── run_ui.command          # Double-click launcher (macOS)
 │   ├── run_ui.bat              # Launcher (Windows)
-│   └── static/                 # Pure Vanilla HTML/JS/CSS frontend served by FastAPI
+│   └── static/                 # Modular ES6 frontend (HTML/CSS/JS)
 └── outputs/
-    ├── .gitkeep
-    └── *.png                   # Generated images
+    └── .gitkeep
 ```
 
 ---

@@ -12,30 +12,39 @@
 ```text
 ComfyUI_Skills_OpenClaw/
 ├── SKILL.md                    # Agent 指令规范（如何调用 registry/client）
-├── README.md                   # 英文主页
-├── README.zh.md                # 中文说明
+├── README.md
+├── README.zh.md
 ├── LICENSE
 ├── .gitignore
 ├── requirements.txt            # Python 依赖（FastAPI、requests 等）
 ├── config.example.json         # 配置示例
 ├── config.json                 # 本地实际配置（默认 gitignore）
+├── asset/
+│   └── banner.jpg
 ├── data/
 │   ├── workflows/
-│   │   └── test.json           # ComfyUI API 格式工作流（当前演示）
+│   │   └── <workflow_id>.json  # ComfyUI API 格式工作流
 │   └── schemas/
-│       └── test.json           # workflow "test" 对外参数映射
+│       └── <workflow_id>.json  # 对外参数映射
 ├── scripts/
 │   ├── registry.py             # 列出可用工作流及参数
-│   └── comfyui_client.py       # 注入参数、提交任务、轮询完成、下载图片
+│   ├── comfyui_client.py       # 注入参数、提交任务、轮询完成、下载图片
+│   └── shared/                 # 跨脚本共用的配置与 JSON 工具
+│       ├── config.py
+│       ├── json_utils.py
+│       └── runtime_config.py
 ├── ui/
-│   ├── app.py                  # FastAPI 本地管理面板后端
+│   ├── app.py                  # FastAPI 路由层
+│   ├── services.py             # 业务逻辑（工作流增删改查）
+│   ├── models.py               # Pydantic 请求/响应模型
+│   ├── json_store.py           # JSON 文件读写封装
+│   ├── settings.py             # 应用级配置
 │   ├── run_ui.sh               # 启动脚本（macOS/Linux）
 │   ├── run_ui.command          # macOS 双击启动
 │   ├── run_ui.bat              # Windows 启动
-│   └── static/                 # 前端构建产物
+│   └── static/                 # 模块化 ES6 前端（HTML/CSS/JS）
 └── outputs/
-    ├── .gitkeep
-    └── *.png                   # 生成图片输出目录
+    └── .gitkeep
 ```
 
 ---
