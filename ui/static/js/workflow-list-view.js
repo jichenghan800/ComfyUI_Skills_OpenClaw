@@ -40,12 +40,27 @@ export function renderWorkflowList($container) {
               <p class="workflow-desc">${desc ? escapeHtml(desc) : `<em>${escapeHtml(stateText)}</em>`}</p>
             </div>
             <div class="workflow-actions">
-              <button type="button" class="btn btn-secondary btn-icon" data-action="edit-workflow" aria-label="${escapeHtml(t("edit_workflow", { id: workflow.id }))}">&#x270E;</button>
               <label class="toggle-switch" aria-label="${escapeHtml(t("toggle_workflow", { id: workflow.id }))}">
                 <input type="checkbox" data-action="toggle-workflow" ${workflow.enabled ? "checked" : ""}>
                 <span class="slider"></span>
               </label>
-              <button type="button" class="btn-danger btn-icon" data-action="delete-workflow" aria-label="${escapeHtml(t("delete_workflow", { id: workflow.id }))}">&#x2715;</button>
+              <button type="button" class="btn btn-secondary btn-icon workflow-action-btn" data-action="edit-workflow" aria-label="${escapeHtml(t("edit_workflow", { id: workflow.id }))}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  class="lucide lucide-pencil">
+                  <path
+                    d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" />
+                  <path d="m15 5 4 4" />
+                </svg>
+              </button>
+              <button type="button" class="btn btn-secondary btn-icon workflow-action-btn workflow-delete-btn" data-action="delete-workflow" aria-label="${escapeHtml(t("delete_workflow", { id: workflow.id }))}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 6h18"></path>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                </svg>
+              </button>
             </div>
           </article>
         `;
