@@ -36,10 +36,6 @@ export function showToast(message, type = "success", duration = 3000) {
   text.className = "toast-message";
   text.textContent = String(message);
 
-  const progress = document.createElement("div");
-  progress.className = "toast-progress";
-  progress.style.animationDuration = `${duration}ms`;
-
   const closeButton = document.createElement("button");
   closeButton.type = "button";
   closeButton.className = "toast-close";
@@ -51,7 +47,6 @@ export function showToast(message, type = "success", duration = 3000) {
   toast.appendChild(icon);
   toast.appendChild(body);
   toast.appendChild(closeButton);
-  toast.appendChild(progress);
 
   container.appendChild(toast);
 
@@ -80,14 +75,12 @@ export function showToast(message, type = "success", duration = 3000) {
   function pauseTimer() {
     window.clearTimeout(closeTimerId);
     remaining = Math.max(0, remaining - (Date.now() - startTime));
-    toast.classList.add("is-paused");
   }
 
   function resumeTimer() {
     if (toast.classList.contains("closing")) {
       return;
     }
-    toast.classList.remove("is-paused");
     startCloseTimer(remaining);
   }
 
