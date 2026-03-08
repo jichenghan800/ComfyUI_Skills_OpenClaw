@@ -13,6 +13,26 @@ It converts natural language requests into structured skill arguments, maps them
 
 ---
 
+## Project Keywords
+
+This repository is optimized around these search intents:
+
+- OpenClaw
+- ComfyUI
+- ComfyUI Skills
+- ComfyUI workflow automation
+- OpenClaw ComfyUI integration
+- AI image generation skill
+- Xiao Long Xia (small crawfish / 小龙虾, project nickname)
+
+Related files for project understanding and retrieval:
+- `README.md` (English overview)
+- `README.zh.md` (Chinese overview)
+- `SKILL.md` (agent execution contract)
+- `llms.txt` and `llms-full.txt` (LLM-oriented summaries)
+
+---
+
 ## Current Project Structure
 
 ```text
@@ -222,3 +242,11 @@ In short: **API-format workflow + Save Image output node** are required for stab
 - Better schema validation before queueing
 - Richer error reporting from ComfyUI node errors
 - Optional batch generation / multi-seed helpers
+
+---
+
+## Project Resources
+
+- Project summary: `llms.txt`
+- Extended project context: `llms-full.txt`
+- Project discovery checklist: `docs/PROJECT_DISCOVERY_CHECKLIST.md`
