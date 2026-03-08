@@ -257,7 +257,8 @@ class UIStorageService:
 
     @staticmethod
     def _slugify_server_id(value: str) -> str:
-        text = re.sub(r"[^a-zA-Z0-9_-]+", "-", value.strip().lower())
+        # Keep Unicode letters/numbers so non-English names do not collapse to "server".
+        text = re.sub(r"[^\w-]+", "-", value.strip().lower(), flags=re.UNICODE)
         text = text.strip("-_")
         return text or "server"
 

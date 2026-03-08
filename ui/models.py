@@ -12,6 +12,22 @@ class ServerModel(BaseModel):
     enabled: bool = True
     output_dir: str = "./outputs"
 
+    @field_validator("id", mode="before")
+    @classmethod
+    def normalize_id(cls, value: Any) -> str:
+        if value is None:
+            return ""
+        return str(value)
+
+    @field_validator("name", "url", "output_dir", mode="before")
+    @classmethod
+    def normalize_string_fields(cls, value: Any, info) -> str:
+        if value is None:
+            if info.field_name == "output_dir":
+                return "./outputs"
+            return ""
+        return str(value)
+
     @field_validator("id")
     @classmethod
     def validate_id(cls, value: str) -> str:
@@ -42,6 +58,22 @@ class CreateServerModel(BaseModel):
     url: str = Field(min_length=1)
     enabled: bool = True
     output_dir: str = "./outputs"
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def normalize_optional_id(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        return str(value)
+
+    @field_validator("name", "url", "output_dir", mode="before")
+    @classmethod
+    def normalize_create_string_fields(cls, value: Any, info) -> str:
+        if value is None:
+            if info.field_name == "output_dir":
+                return "./outputs"
+            return ""
+        return str(value)
 
     @field_validator("id")
     @classmethod
