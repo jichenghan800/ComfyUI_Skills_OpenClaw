@@ -69,17 +69,25 @@ function renderParamRow(parameter) {
   `;
 }
 
-function renderNodeCard([nodeId, nodeData]) {
+function renderNodeCard([nodeId, nodeData], collapsedNodeIds = new Set()) {
+  const isCollapsed = collapsedNodeIds.has(String(nodeId));
   const paramsHtml = nodeData.params.map((parameter) => renderParamRow({ key: parameter.key, ...parameter })).join("");
 
   return `
-    <article class="node-card">
+    <article class="node-card${isCollapsed ? " is-collapsed" : ""}">
       <div class="node-header">
         <div class="node-title">
           <span class="status-dot" aria-hidden="true">●</span>
           <span>${escapeHtml(nodeData.classType)}</span>
         </div>
-        <span class="status-badge">${escapeHtml(t("node_id"))}: ${escapeHtml(nodeId)}</span>
+        <div class="node-header-right">
+          <span class="status-badge">${escapeHtml(t("node_id"))}: ${escapeHtml(nodeId)}</span>
+          <button type="button" class="btn btn-secondary btn-icon small node-collapse-btn"
+            data-action="toggle-node" data-node-id="${escapeHtml(nodeId)}"
+            aria-label="${escapeHtml(t("toggle_node", { id: nodeId }))}">
+            ${isCollapsed ? "▸" : "▾"}
+          </button>
+        </div>
       </div>
       <div class="node-body">${paramsHtml}</div>
     </article>
@@ -98,19 +106,126 @@ export function renderEditorMode($badge, $saveButton) {
   $saveButton.text(t("save_workflow"));
 }
 
-export function renderEmptyNodes($container) {
-  $container.html(`<div class="empty-state">${escapeHtml(t("empty_nodes"))}</div>`);
+export function renderEmptyNodes($container, messageKey = "empty_nodes") {
+  $container.html(`<div class="empty-state">${escapeHtml(t(messageKey))}</div>`);
 }
 
-export function renderNodes($container) {
-  const groupedNodes = groupSchemaParams(getState().schemaParams);
+function matchQuery(parameter, classType, nodeId, query) {
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [
+    classType,
+    String(nodeId),
+    parameter.field,
+    parameter.name,
+    parameter.description,
+    String(parameter.currentVal),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(query);
+}
+
+function compareStrings(first, second) {
+  return String(first).localeCompare(String(second), "en", { sensitivity: "base" });
+}
+
+function sortNodeEntries(nodeEntries, nodeSort) {
+  const sorted = [...nodeEntries];
+  if (nodeSort === "node_id_desc") {
+    sorted.sort((first, second) => Number(second[0]) - Number(first[0]));
+  } else if (nodeSort === "class_asc") {
+    sorted.sort((first, second) => compareStrings(first[1].classType, second[1].classType));
+  } else {
+    sorted.sort((first, second) => Number(first[0]) - Number(second[0]));
+  }
+  return sorted;
+}
+
+function sortParams(params, paramSort) {
+  const sorted = [...params];
+  if (paramSort === "field_asc") {
+    sorted.sort((first, second) => compareStrings(first.field, second.field));
+  } else if (paramSort === "type_asc") {
+    sorted.sort((first, second) => compareStrings(first.type, second.type));
+  } else if (paramSort === "exposed_first") {
+    sorted.sort((first, second) => {
+      if (first.exposed !== second.exposed) {
+        return first.exposed ? -1 : 1;
+      }
+      return compareStrings(first.field, second.field);
+    });
+  }
+  return sorted;
+}
+
+export function renderNodes($container, options = {}) {
+  const { schemaParams } = getState();
+  const groupedNodes = groupSchemaParams(schemaParams);
+  const query = String(options.query || "").trim().toLowerCase();
+  const exposedOnly = Boolean(options.exposedOnly);
+  const requiredOnly = Boolean(options.requiredOnly);
+  const nodeSort = options.nodeSort || "node_id_asc";
+  const paramSort = options.paramSort || "default";
+  const collapsedNodeIds = options.collapsedNodeIds instanceof Set ? options.collapsedNodeIds : new Set();
+
+  const allParams = Object.values(schemaParams);
+  const totalParams = allParams.length;
+  const totalExposed = allParams.filter((parameter) => parameter.exposed).length;
 
   if (!groupedNodes.length) {
     renderEmptyNodes($container);
-    return;
+    return {
+      totalParams,
+      totalExposed,
+      visibleParams: 0,
+      visibleNodes: 0,
+    };
   }
 
-  $container.html(groupedNodes.map(renderNodeCard).join(""));
+  const filteredNodes = sortNodeEntries(groupedNodes, nodeSort)
+    .map(([nodeId, nodeData]) => {
+      const params = sortParams(nodeData.params, paramSort).filter((parameter) => {
+        if (exposedOnly && !parameter.exposed) {
+          return false;
+        }
+        if (requiredOnly && !parameter.required) {
+          return false;
+        }
+        return matchQuery(parameter, nodeData.classType, nodeId, query);
+      });
+      return [nodeId, { ...nodeData, params }];
+    })
+    .filter(([, nodeData]) => nodeData.params.length > 0);
+
+  if (!filteredNodes.length) {
+    renderEmptyNodes($container, "empty_nodes_filtered");
+    return {
+      totalParams,
+      totalExposed,
+      visibleParams: 0,
+      visibleNodes: 0,
+      visibleParamKeys: [],
+      visibleNodeIds: [],
+    };
+  }
+
+  $container.html(filteredNodes.map((entry) => renderNodeCard(entry, collapsedNodeIds)).join(""));
+  const visibleParams = filteredNodes.reduce((sum, [, nodeData]) => sum + nodeData.params.length, 0);
+  const visibleParamKeys = filteredNodes.flatMap(([, nodeData]) => nodeData.params.map((param) => param.key));
+  const visibleNodeIds = filteredNodes.map(([nodeId]) => String(nodeId));
+
+  return {
+    totalParams,
+    totalExposed,
+    visibleParams,
+    visibleNodes: filteredNodes.length,
+    visibleParamKeys,
+    visibleNodeIds,
+  };
 }
 
 export function setEditorVisibility({ mappingSection, uploadZone }, isVisible) {

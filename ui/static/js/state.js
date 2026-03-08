@@ -1,5 +1,20 @@
+function normalizeLanguage(language) {
+  if (!language) {
+    return "en";
+  }
+
+  const value = String(language).toLowerCase();
+  if (value === "zh" || value === "zh-cn" || value === "zh_hans") {
+    return "zh";
+  }
+  if (value === "zh_hant" || value === "zh-tw" || value === "zh-hant") {
+    return "zh_hant";
+  }
+  return "en";
+}
+
 const state = {
-  currentLang: localStorage.getItem("ui-lang") || "en",
+  currentLang: normalizeLanguage(localStorage.getItem("ui-lang")),
   currentUploadData: null,
   schemaParams: {},
   workflows: [],
@@ -15,8 +30,9 @@ export function getState() {
 }
 
 export function setLanguage(language) {
-  state.currentLang = language;
-  localStorage.setItem("ui-lang", language);
+  const normalized = normalizeLanguage(language);
+  state.currentLang = normalized;
+  localStorage.setItem("ui-lang", normalized);
 }
 
 export function toggleLanguage() {

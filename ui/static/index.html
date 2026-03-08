@@ -23,8 +23,12 @@
         <p class="subtitle" data-i18n="subtitle">Dynamically parse workflow graphs and build visual parameter mappings
           for agents.</p>
       </div>
-      <button id="lang-toggle" type="button" class="lang-toggle" data-i18n="lang_btn"
-        aria-label="Switch language">中/EN</button>
+      <label for="lang-select" class="sr-only">Language</label>
+      <select id="lang-select" class="lang-select" aria-label="Language selector">
+        <option value="en">English</option>
+        <option value="zh">简体中文</option>
+        <option value="zh_hant">繁體中文</option>
+      </select>
     </header>
 
     <!-- Server Management -->
@@ -131,8 +135,23 @@
       <div class="editor-nav-title">
         <p id="editor-mode-badge" class="editor-mode-badge" data-i18n="editor_mode_create">Create new workflow mapping
         </p>
+        <p id="editor-progress-hint" class="editor-progress-hint" data-i18n="editor_step_1_hint">Step 1: Fill workflow basic info.</p>
       </div>
     </nav>
+    <ol class="editor-stepper" aria-label="Workflow setup steps">
+      <li id="editor-step-1" class="editor-step is-active">
+        <span class="editor-step-index">1</span>
+        <span class="editor-step-label" data-i18n="editor_step_1">Basic Info</span>
+      </li>
+      <li id="editor-step-2" class="editor-step">
+        <span class="editor-step-index">2</span>
+        <span class="editor-step-label" data-i18n="editor_step_2">Upload Workflow</span>
+      </li>
+      <li id="editor-step-3" class="editor-step">
+        <span class="editor-step-index">3</span>
+        <span class="editor-step-label" data-i18n="editor_step_3">Map Parameters</span>
+      </li>
+    </ol>
 
     <!-- Upload + Basic Info -->
     <section class="card" aria-labelledby="editor-info-title">
@@ -168,9 +187,50 @@
     <!-- Parameter Mapping -->
     <section id="mapping-section" class="card hidden" aria-labelledby="mapping-title">
       <h2 id="mapping-title" class="card-title" data-i18n="parsed_input">Parsed Input Node List</h2>
+      <div class="mapping-toolbar">
+        <input id="mapping-search" type="text" class="input-field" data-i18n-placeholder="mapping_search_placeholder"
+          placeholder="Search by node, field, alias or description">
+        <select id="mapping-node-sort" class="server-selector" aria-label="Node sort order">
+          <option value="node_id_asc" data-i18n="mapping_sort_node_id_asc">Node ID (asc)</option>
+          <option value="node_id_desc" data-i18n="mapping_sort_node_id_desc">Node ID (desc)</option>
+          <option value="class_asc" data-i18n="mapping_sort_class_asc">Node type (A-Z)</option>
+        </select>
+        <select id="mapping-param-sort" class="server-selector" aria-label="Parameter sort order">
+          <option value="default" data-i18n="mapping_sort_param_default">Parameter default</option>
+          <option value="field_asc" data-i18n="mapping_sort_param_name">Parameter name (A-Z)</option>
+          <option value="type_asc" data-i18n="mapping_sort_param_type">Type (A-Z)</option>
+          <option value="exposed_first" data-i18n="mapping_sort_param_exposed">Exposed first</option>
+        </select>
+        <label class="checkbox-inline mapping-exposed-only-label" for="mapping-exposed-only">
+          <input id="mapping-exposed-only" type="checkbox">
+          <span data-i18n="mapping_exposed_only">Only show exposed parameters</span>
+        </label>
+        <label class="checkbox-inline mapping-exposed-only-label" for="mapping-required-only">
+          <input id="mapping-required-only" type="checkbox">
+          <span data-i18n="mapping_required_only">Only show required parameters</span>
+        </label>
+        <div class="mapping-toolbar-actions">
+          <button id="mapping-expose-recommended" type="button" class="btn btn-secondary"
+            data-i18n="mapping_apply_recommended">Auto expose recommended</button>
+          <button id="mapping-expose-visible" type="button" class="btn btn-secondary"
+            data-i18n="mapping_expose_visible">Expose visible</button>
+          <button id="mapping-unexpose-visible" type="button" class="btn btn-secondary"
+            data-i18n="mapping_unexpose_visible">Unexpose visible</button>
+          <button id="mapping-collapse-all" type="button" class="btn btn-secondary"
+            data-i18n="mapping_collapse_all">Collapse all nodes</button>
+          <button id="mapping-expand-all" type="button" class="btn btn-secondary"
+            data-i18n="mapping_expand_all">Expand all nodes</button>
+          <button id="mapping-reset-filters" type="button" class="btn btn-secondary"
+            data-i18n="mapping_reset_filters">Reset filters</button>
+        </div>
+      </div>
+      <p id="mapping-summary" class="section-meta"></p>
       <div id="nodes-container" class="nodes-container" aria-live="polite"></div>
-      <button id="save-workflow-btn" type="button" class="btn btn-wide btn-accent" data-i18n="save_workflow">Save
-        Workflow and Mapping Schema</button>
+      <div class="mapping-savebar">
+        <p class="mapping-shortcut-hint" data-i18n="mapping_shortcuts_hint">Shortcuts: Ctrl/Cmd+S save, / focus search, Esc clear search</p>
+        <button id="save-workflow-btn" type="button" class="btn btn-wide btn-accent" data-i18n="save_workflow">Save
+          Workflow and Mapping Schema</button>
+      </div>
     </section>
   </main>
 

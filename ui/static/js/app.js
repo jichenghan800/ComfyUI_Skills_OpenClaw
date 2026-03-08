@@ -9,7 +9,6 @@ import {
   setSchemaParams,
   setUploadData,
   setWorkflows,
-  toggleLanguage,
   updateSchemaParam,
   setServers,
   setDefaultServerId,
@@ -33,9 +32,23 @@ import { buildFinalSchema, extractSchemaParams, parseWorkflowUpload } from "./wo
 import { scrollToElement, setBusy, escapeHtml } from "./ui-utils.js";
 
 let elements;
+const editorFilters = {
+  query: "",
+  exposedOnly: false,
+  requiredOnly: false,
+  nodeSort: "node_id_asc",
+  paramSort: "default",
+};
+const collapsedNodeIds = new Set();
+let latestEditorStats = null;
+let hasEditorUnsavedChanges = false;
 
 function $(...args) {
   return window.jQuery(...args);
+}
+
+function markEditorDirty(isDirty = true) {
+  hasEditorUnsavedChanges = isDirty;
 }
 
 // ── View Management ───────────────────────────────────────────────
@@ -107,9 +120,182 @@ function refreshWorkflowPanel() {
   renderWorkflowList(elements.workflowList);
 }
 
+function getEditorStep() {
+  const workflowId = elements.workflowId.val().trim();
+  const { currentUploadData } = getState();
+
+  if (!workflowId) {
+    return 1;
+  }
+  if (!currentUploadData) {
+    return 2;
+  }
+  return 3;
+}
+
+function refreshEditorProgress() {
+  const step = getEditorStep();
+  const hints = {
+    1: t("editor_step_1_hint"),
+    2: t("editor_step_2_hint"),
+    3: t("editor_step_3_hint"),
+  };
+
+  elements.editorProgressHint.text(hints[step]);
+
+  [
+    { element: elements.editorStep1, value: 1 },
+    { element: elements.editorStep2, value: 2 },
+    { element: elements.editorStep3, value: 3 },
+  ].forEach(({ element, value }) => {
+    element.toggleClass("is-active", value === step);
+    element.toggleClass("is-done", value < step);
+  });
+}
+
+function refreshMappingSummary(stats) {
+  if (!stats || stats.totalParams === 0) {
+    elements.mappingSummary.text("");
+    return;
+  }
+
+  elements.mappingSummary.text(
+    t("mapping_summary", {
+      visible_params: stats.visibleParams,
+      total_params: stats.totalParams,
+      exposed_params: stats.totalExposed,
+      visible_nodes: stats.visibleNodes,
+    }),
+  );
+}
+
 function refreshEditorPanel() {
   renderEditorMode(elements.editorModeBadge, elements.saveWorkflowButton);
-  renderNodes(elements.nodesContainer);
+  const stats = renderNodes(elements.nodesContainer, { ...editorFilters, collapsedNodeIds });
+  latestEditorStats = stats;
+  refreshMappingSummary(stats);
+  refreshEditorProgress();
+}
+
+function resetEditorFilters() {
+  editorFilters.query = "";
+  editorFilters.exposedOnly = false;
+  editorFilters.requiredOnly = false;
+  editorFilters.nodeSort = "node_id_asc";
+  editorFilters.paramSort = "default";
+  elements.mappingSearch.val("");
+  elements.mappingExposedOnly.prop("checked", false);
+  elements.mappingRequiredOnly.prop("checked", false);
+  elements.mappingNodeSort.val("node_id_asc");
+  elements.mappingParamSort.val("default");
+}
+
+function resetCollapsedNodes() {
+  collapsedNodeIds.clear();
+}
+
+function shouldAutoExposeParameter(parameter) {
+  if (!parameter || !parameter.field) {
+    return false;
+  }
+
+  const commonFields = new Set([
+    "prompt",
+    "text",
+    "negative_prompt",
+    "seed",
+    "steps",
+    "cfg",
+    "denoise",
+    "width",
+    "height",
+    "batch_size",
+    "filename_prefix",
+  ]);
+
+  return commonFields.has(parameter.field);
+}
+
+function applyRecommendedExposures() {
+  const { schemaParams } = getState();
+  let changedCount = 0;
+
+  Object.entries(schemaParams).forEach(([key, parameter]) => {
+    if (!shouldAutoExposeParameter(parameter) || parameter.exposed) {
+      return;
+    }
+
+    updateSchemaParam(key, "exposed", true);
+    if (!parameter.name || !parameter.name.trim()) {
+      updateSchemaParam(key, "name", parameter.field);
+    }
+    changedCount += 1;
+  });
+
+  if (changedCount === 0) {
+    showToast(t("mapping_no_recommended_changes"), "success");
+    return;
+  }
+
+  markEditorDirty(true);
+  refreshEditorPanel();
+  showToast(t("mapping_apply_recommended_ok", { count: changedCount }), "success");
+}
+
+function applyExposeToVisible(shouldExpose) {
+  const visibleKeys = latestEditorStats?.visibleParamKeys || [];
+  if (!visibleKeys.length) {
+    showToast(t("mapping_no_visible_params"), "error");
+    return;
+  }
+
+  let changedCount = 0;
+  visibleKeys.forEach((key) => {
+    const parameter = getState().schemaParams[key];
+    if (!parameter || parameter.exposed === shouldExpose) {
+      return;
+    }
+    updateSchemaParam(key, "exposed", shouldExpose);
+    if (shouldExpose && (!parameter.name || !parameter.name.trim())) {
+      updateSchemaParam(key, "name", parameter.field);
+    }
+    changedCount += 1;
+  });
+
+  if (!changedCount) {
+    showToast(t("mapping_no_batch_changes"), "success");
+    return;
+  }
+
+  markEditorDirty(true);
+  refreshEditorPanel();
+  showToast(
+    t(shouldExpose ? "mapping_expose_visible_ok" : "mapping_unexpose_visible_ok", { count: changedCount }),
+    "success",
+  );
+}
+
+function setAllVisibleNodesCollapsed(isCollapsed) {
+  const visibleNodeIds = latestEditorStats?.visibleNodeIds || [];
+  visibleNodeIds.forEach((nodeId) => {
+    if (isCollapsed) {
+      collapsedNodeIds.add(String(nodeId));
+    } else {
+      collapsedNodeIds.delete(String(nodeId));
+    }
+  });
+  refreshEditorPanel();
+}
+
+function isEditorVisible() {
+  return !elements.viewEditor.hasClass("hidden");
+}
+
+function confirmLeaveEditorIfDirty() {
+  if (!isEditorVisible() || !hasEditorUnsavedChanges) {
+    return true;
+  }
+  return window.confirm(t("confirm_unsaved_leave"));
 }
 
 function clearEditorFields() {
@@ -119,12 +305,19 @@ function clearEditorFields() {
 }
 
 function exitEditor() {
+  if (!confirmLeaveEditorIfDirty()) {
+    return false;
+  }
   resetMappingState();
   setEditingWorkflowId(null);
+  resetEditorFilters();
+  resetCollapsedNodes();
   clearEditorFields();
+  markEditorDirty(false);
   setEditorVisibility(elements, false);
   refreshEditorPanel();
   showView("main");
+  return true;
 }
 
 function enterEditor({ workflowData, schemaParams, workflowId = "", description = "", editingWorkflowId = null }) {
@@ -134,6 +327,9 @@ function enterEditor({ workflowData, schemaParams, workflowId = "", description 
   elements.fileUpload.val("");
   elements.workflowId.val(workflowId);
   elements.workflowDescription.val(description);
+  resetEditorFilters();
+  resetCollapsedNodes();
+  markEditorDirty(false);
   setEditorVisibility(elements, !!workflowData);
   refreshEditorPanel();
   showView("editor");
@@ -217,7 +413,7 @@ async function addNewServer() {
   const url = urlInput.val().trim();
 
   if (!id || !url) {
-    showToast("Server ID and URL are required", "error");
+    showToast(t("err_server_id_url_required"), "error");
     return;
   }
 
@@ -381,7 +577,7 @@ async function requestSaveWorkflow({
 async function saveWorkflow() {
   const serverId = getCurrentServerId();
   if (!serverId) {
-    showToast("No server selected", "error");
+    showToast(t("err_no_server_selected"), "error");
     return;
   }
 
@@ -409,7 +605,7 @@ async function saveWorkflow() {
   // If editing and no new upload, backend requires us to resend existing data,
   // but we skip the "need upload" check if editingWorkflowId is set.
   if (!currentUploadData && !editingWorkflowId) {
-    showToast("No workflow data uploaded. Please upload a workflow JSON.", "error");
+    showToast(t("err_no_workflow_uploaded"), "error");
     return;
   }
 
@@ -426,6 +622,7 @@ async function saveWorkflow() {
       schemaParams: finalSchema,
     });
     showToast(t("ok_save_wf"), "success");
+    markEditorDirty(false);
     await loadWorkflows();
     exitEditor();
   } catch (error) {
@@ -463,19 +660,19 @@ async function handleWorkflowFile(file) {
   if (!file) return;
 
   if (!getCurrentServerId()) {
-    showToast("Please add/select a server first.", "error");
+    showToast(t("err_select_server_first"), "error");
     return;
   }
 
   try {
     const fileContents = await readFile(file);
     const parsed = parseWorkflowUpload(fileContents);
-    // Merge new parsed schemaParams with potentially existing ones (if user uploads a new json over an existing mapping)
-    const { schemaParams: oldParams } = getState();
     const newSchema = { ...parsed.schemaParams };
 
     setUploadData(parsed.workflowData);
     setSchemaParams(newSchema);
+    markEditorDirty(true);
+    resetCollapsedNodes();
 
     setEditorVisibility(elements, true);
     refreshEditorPanel();
@@ -491,6 +688,7 @@ async function handleWorkflowFile(file) {
 
 function syncLanguage() {
   setLanguage(getState().currentLang);
+  elements.langSelect.val(getState().currentLang);
   applyTranslations();
   refreshServerSelector();
   refreshWorkflowPanel();
@@ -560,7 +758,7 @@ function bindWorkflowEvents() {
   // New Workflow
   elements.addWorkflowBtn.on("click", () => {
     if (!getCurrentServerId()) {
-      showToast("Please add/select a server to register a workflow.", "error");
+      showToast(t("err_select_server_before_register"), "error");
       return;
     }
     enterEditor({ workflowData: null, schemaParams: {} });
@@ -602,9 +800,114 @@ function bindNodeFieldUpdates() {
     const field = $control.data("field");
     const value = $control.is(":checkbox") ? $control.prop("checked") : $control.val();
     updateSchemaParam(paramKey, field, value);
+    markEditorDirty(true);
 
     if (field === "exposed") {
-      renderNodes(elements.nodesContainer);
+      refreshEditorPanel();
+    }
+  });
+
+  elements.nodesContainer.on("click", "button[data-action='toggle-node']", function () {
+    const nodeId = String($(this).data("nodeId"));
+    if (collapsedNodeIds.has(nodeId)) {
+      collapsedNodeIds.delete(nodeId);
+    } else {
+      collapsedNodeIds.add(nodeId);
+    }
+    refreshEditorPanel();
+  });
+}
+
+function bindMappingToolbarEvents() {
+  elements.mappingSearch.on("input", function () {
+    editorFilters.query = $(this).val().trim();
+    refreshEditorPanel();
+  });
+
+  elements.mappingExposedOnly.on("change", function () {
+    editorFilters.exposedOnly = $(this).prop("checked");
+    refreshEditorPanel();
+  });
+
+  elements.mappingRequiredOnly.on("change", function () {
+    editorFilters.requiredOnly = $(this).prop("checked");
+    refreshEditorPanel();
+  });
+
+  elements.mappingNodeSort.on("change", function () {
+    editorFilters.nodeSort = $(this).val();
+    refreshEditorPanel();
+  });
+
+  elements.mappingParamSort.on("change", function () {
+    editorFilters.paramSort = $(this).val();
+    refreshEditorPanel();
+  });
+
+  elements.mappingResetFiltersButton.on("click", () => {
+    resetEditorFilters();
+    refreshEditorPanel();
+  });
+
+  elements.mappingExposeRecommendedButton.on("click", () => {
+    applyRecommendedExposures();
+  });
+
+  elements.mappingExposeVisibleButton.on("click", () => {
+    applyExposeToVisible(true);
+  });
+
+  elements.mappingUnexposeVisibleButton.on("click", () => {
+    applyExposeToVisible(false);
+  });
+
+  elements.mappingCollapseAllButton.on("click", () => {
+    setAllVisibleNodesCollapsed(true);
+  });
+
+  elements.mappingExpandAllButton.on("click", () => {
+    setAllVisibleNodesCollapsed(false);
+  });
+
+  elements.workflowId.on("input", () => {
+    markEditorDirty(true);
+    refreshEditorProgress();
+  });
+
+  elements.workflowDescription.on("input", () => {
+    markEditorDirty(true);
+    refreshEditorProgress();
+  });
+}
+
+function bindEditorShortcuts() {
+  document.addEventListener("keydown", (event) => {
+    if (!isEditorVisible()) {
+      return;
+    }
+
+    const isInputLike = event.target instanceof HTMLElement
+      && (event.target.tagName === "INPUT"
+        || event.target.tagName === "TEXTAREA"
+        || event.target.tagName === "SELECT"
+        || event.target.isContentEditable);
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      saveWorkflow();
+      return;
+    }
+
+    if (!isInputLike && event.key === "/") {
+      event.preventDefault();
+      elements.mappingSearch.trigger("focus");
+      return;
+    }
+
+    if (event.key === "Escape" && elements.mappingSearch.is(":focus") && elements.mappingSearch.val()) {
+      elements.mappingSearch.val("");
+      editorFilters.query = "";
+      refreshEditorPanel();
     }
   });
 }
@@ -638,8 +941,8 @@ function bindUploadInteractions() {
 }
 
 function bindEvents() {
-  elements.langToggle.on("click", () => {
-    toggleLanguage();
+  elements.langSelect.on("change", function () {
+    setLanguage($(this).val());
     applyTranslations();
     refreshServerSelector();
     refreshWorkflowPanel();
@@ -652,7 +955,17 @@ function bindEvents() {
   bindServerEvents();
   bindWorkflowEvents();
   bindNodeFieldUpdates();
+  bindMappingToolbarEvents();
+  bindEditorShortcuts();
   bindUploadInteractions();
+
+  window.addEventListener("beforeunload", (event) => {
+    if (!isEditorVisible() || !hasEditorUnsavedChanges) {
+      return;
+    }
+    event.preventDefault();
+    event.returnValue = "";
+  });
 }
 
 function renderFatalJQueryError(error) {
