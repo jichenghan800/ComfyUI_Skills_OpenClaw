@@ -5,21 +5,40 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 
-class ConfigModel(BaseModel):
-    comfyui_server_url: str = Field(min_length=1)
-    output_dir: str = Field(min_length=1)
+class ServerModel(BaseModel):
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    url: str = Field(min_length=1)
+    enabled: bool = True
+    output_dir: str = "./outputs"
 
-    @field_validator("comfyui_server_url", "output_dir")
+    @field_validator("id")
     @classmethod
-    def strip_value(cls, value: str) -> str:
+    def validate_id(cls, value: str) -> str:
         value = value.strip()
         if not value:
-            raise ValueError("must not be empty")
+            raise ValueError("Server ID is required")
+        if any(c in value for c in ("/", "\\", " ")) or value in {".", ".."}:
+            raise ValueError("Server ID contains invalid characters")
         return value
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Server URL is required")
+        return value
+
+
+class ConfigModel(BaseModel):
+    servers: list[ServerModel]
+    default_server: str = "local"
 
 
 class SchemaModel(BaseModel):
     workflow_id: str = Field(min_length=1)
+    server_id: str = Field(min_length=1, default="local")
     original_workflow_id: str | None = None
     overwrite_existing: bool = False
     description: str = ""

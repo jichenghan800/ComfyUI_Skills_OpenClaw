@@ -5,16 +5,32 @@ import time
 import argparse
 import urllib.request
 import urllib.parse
+import sys
 from logging import getLogger
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from shared.config import get_server_workflows_dir, get_server_schemas_dir
 from shared.json_utils import load_json
-from shared.runtime_config import get_runtime_config
+from shared.runtime_config import get_runtime_config, get_server_by_id, get_default_server_id
 
 logger = getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WORKFLOWS_DIR = os.path.join(BASE_DIR, "data", "workflows")
-SCHEMAS_DIR = os.path.join(BASE_DIR, "data", "schemas")
+
+
+def parse_workflow_arg(workflow_arg: str) -> tuple[str, str]:
+    """Parse a composite workflow argument like 'server_id/workflow_id'.
+
+    If no '/' is present, uses the default server.
+    Returns (server_id, workflow_id).
+    """
+    if "/" in workflow_arg:
+        parts = workflow_arg.split("/", 1)
+        return parts[0], parts[1]
+    else:
+        return get_default_server_id(), workflow_arg
+
 
 def queue_prompt(server_url, prompt_workflow):
     data = json.dumps({"prompt": prompt_workflow, "client_id": str(uuid.uuid4())}).encode('utf-8')
@@ -26,6 +42,7 @@ def queue_prompt(server_url, prompt_workflow):
         print(f"Error connecting to ComfyUI ({server_url}): {e}")
         return None
 
+
 def get_history(server_url, prompt_id):
     req = urllib.request.Request(f"{server_url}/history/{prompt_id}")
     try:
@@ -33,6 +50,7 @@ def get_history(server_url, prompt_id):
             return json.loads(response.read())
     except urllib.error.URLError:
         return None
+
 
 def get_image(server_url, filename, subfolder, folder_type):
     data = {"filename": filename, "subfolder": subfolder, "type": folder_type}
@@ -44,51 +62,76 @@ def get_image(server_url, filename, subfolder, folder_type):
     except urllib.error.URLError:
         return None
 
+
 def main():
     parser = argparse.ArgumentParser(description="ComfyUI Client for OpenClaw Skill")
-    parser.add_argument("--workflow", required=True, help="Name of the workflow (e.g. sd15_txt2img)")
+    parser.add_argument("--workflow", required=True,
+                        help="Workflow identifier: '<server_id>/<workflow_id>' or just '<workflow_id>' (uses default server)")
     parser.add_argument("--args", required=True, help="JSON string of parameter key-values mapping to the schema")
-    
+
     args = parser.parse_args()
-    
-    # 1. Load config
-    config = get_runtime_config()
-    server_url = config.get("comfyui_server_url", "http://127.0.0.1:8188")
-    output_dir = config.get("output_dir", os.path.join(BASE_DIR, "outputs"))
-    
+
+    # 1. Parse composite workflow argument
+    server_id, workflow_id = parse_workflow_arg(args.workflow)
+
+    # 2. Look up server config
+    server = get_server_by_id(server_id)
+    if not server:
+        print(json.dumps({"error": f"Server '{server_id}' not found in config.json"}))
+        return
+
+    if not server.get("enabled", True):
+        print(json.dumps({"error": f"Server '{server_id}' is disabled"}))
+        return
+
+    server_url = server.get("url", "http://127.0.0.1:8188")
+    output_dir = server.get("output_dir", os.path.join(BASE_DIR, "outputs"))
+
+    # Resolve relative output_dir
+    if not os.path.isabs(output_dir):
+        output_dir = os.path.join(BASE_DIR, output_dir)
+
     if not os.path.exists(output_dir):
         os.makedirs(output_dir, exist_ok=True)
-        
-    # 2. Parse input arguments
+
+    # 3. Parse input arguments
     try:
         input_args = json.loads(args.args)
     except json.JSONDecodeError:
         print(json.dumps({"error": "Invalid JSON format for --args"}))
         return
 
-    # 3. Load Workflow and Schema
-    wf_path = os.path.join(WORKFLOWS_DIR, f"{args.workflow}.json")
-    schema_path = os.path.join(SCHEMAS_DIR, f"{args.workflow}.json")
-    
+    # 4. Load Workflow and Schema from server-specific directory
+    workflows_dir = str(get_server_workflows_dir(server_id))
+    schemas_dir = str(get_server_schemas_dir(server_id))
+
+    wf_path = os.path.join(workflows_dir, f"{workflow_id}.json")
+    schema_path = os.path.join(schemas_dir, f"{workflow_id}.json")
+
     if not os.path.exists(wf_path):
-        print(json.dumps({"error": f"Workflow {args.workflow}.json not found in {WORKFLOWS_DIR}"}))
+        print(json.dumps({"error": f"Workflow {workflow_id}.json not found in {workflows_dir}"}))
         return
-        
+
     if not os.path.exists(schema_path):
-        print(json.dumps({"error": f"Schema {args.workflow}.json not found in {SCHEMAS_DIR}"}))
+        print(json.dumps({"error": f"Schema {workflow_id}.json not found in {schemas_dir}"}))
         return
-        
+
     workflow_data = load_json(wf_path)
     schema_data = load_json(schema_path)
+
+    # Check workflow enabled
+    if not schema_data.get("enabled", True):
+        print(json.dumps({"error": f"Workflow '{workflow_id}' is disabled on server '{server_id}'"}))
+        return
+
     parameters = schema_data.get("parameters", {})
-    
-    # 4. Map parameters to workflow nodes
+
+    # 5. Map parameters to workflow nodes
     for key, value in input_args.items():
         if key in parameters:
             node_id = str(parameters[key]["node_id"])
             field = parameters[key]["field"]
             if node_id in workflow_data and "inputs" in workflow_data[node_id]:
-                # Automatically convert type if necessary based on schema
                 param_type = parameters[key].get("type", "string")
                 if param_type == "int":
                     value = int(value)
@@ -96,56 +139,54 @@ def main():
                     value = float(value)
                 elif param_type == "boolean":
                     value = bool(value)
-                
+
                 workflow_data[node_id]["inputs"][field] = value
-                
-    # 5. Queue Prompt
+
+    # 6. Queue Prompt
     queue_res = queue_prompt(server_url, workflow_data)
     if not queue_res or 'prompt_id' not in queue_res:
         print(json.dumps({"error": "Failed to queue prompt to ComfyUI."}))
         return
-        
+
     prompt_id = queue_res['prompt_id']
-    
-    # 6. Poll for completion via history
-    # To keep it completely standard-library-only without websockets, we poll /history
-    # This works because /history will contain the prompt_id once the job is fully done
-    
+
+    # 7. Poll for completion via history
     while True:
         history = get_history(server_url, prompt_id)
         if history and prompt_id in history:
             job_info = history[prompt_id]
             break
-        # Sleep to avoid spamming the server
         time.sleep(2)
-        
-    # 7. Extract images
+
+    # 8. Extract images
     if 'outputs' not in job_info:
         print(json.dumps({"error": "No outputs found in job execution."}))
         return
-        
+
     downloaded_files = []
-    
+
     for node_id, node_output in job_info['outputs'].items():
         if 'images' in node_output:
             for image in node_output['images']:
                 filename = image['filename']
                 subfolder = image.get('subfolder', '')
                 folder_type = image.get('type', 'output')
-                
+
                 img_data = get_image(server_url, filename, subfolder, folder_type)
                 if img_data:
                     local_filepath = os.path.join(output_dir, f"{prompt_id}_{node_id}_{filename}")
                     with open(local_filepath, "wb") as f:
                         f.write(img_data)
                     downloaded_files.append(local_filepath)
-                    
+
     # Output the JSON result
     print(json.dumps({
         "status": "success",
+        "server": server_id,
         "prompt_id": prompt_id,
-        "images": downloaded_files
+        "images": downloaded_files,
     }))
+
 
 if __name__ == "__main__":
     main()
