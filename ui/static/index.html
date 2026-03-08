@@ -5,6 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ComfyUI OpenClaw Skill UI</title>
+  <link rel="icon" type="image/png" href="static/logo.png">
+  <link rel="apple-touch-icon" href="static/logo.png">
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/vendor/jquery-3.7.1.min.js"></script>
 </head>
@@ -17,7 +19,7 @@
        ═══════════════════════════════════════════════════════════════ -->
   <main id="view-main" class="page shell">
     <header class="page-header">
-      <div class="logo-icon" aria-hidden="true">OC</div>
+      <img class="logo-image" src="static/logo.png" alt="ComfyUI OpenClaw logo" />
       <div class="page-title-group">
         <h1 data-i18n="title">ComfyUI OpenClaw Skill</h1>
         <p class="subtitle" data-i18n="subtitle">Dynamically parse workflow graphs and build visual parameter mappings
@@ -33,17 +35,24 @@
 
     <!-- Server Management -->
     <section class="card" aria-labelledby="server-manager-title">
-      <div class="section-header">
-        <h2 id="server-manager-title" class="card-title" data-i18n="server_manager">Server Manager</h2>
-        <div class="server-selector-wrapper">
-          <select id="server-selector" class="server-selector"></select>
+      <div class="section-header panel-toolbar">
+        <div class="panel-title-wrap">
+          <h2 id="server-manager-title" class="card-title" data-i18n="server_manager">Server Manager</h2>
+        </div>
+        <div class="panel-actions">
+          <button id="btn-toggle-add-server" type="button" class="btn btn-secondary panel-action-btn"
+            data-i18n="add_server_toggle">Add Server</button>
         </div>
       </div>
 
-      <div class="server-config-container card card-nested">
-        <div class="server-config-header">
-          <h3 class="section-title" data-i18n="current_server_config">Server Config</h3>
-          <!-- Current Server Summary & Controls -->
+      <div id="server-config-container" class="server-config-container card card-nested">
+        <div class="server-main-row">
+          <div class="server-main-left">
+            <span class="section-meta" data-i18n="current_server_title">Current Server</span>
+            <div class="server-selector-wrapper">
+              <select id="server-selector" class="server-selector"></select>
+            </div>
+          </div>
           <div id="current-server-actions" class="server-header-controls">
             <div class="server-status-toggle">
               <label class="toggle-inline" title="Enable/Disable Server" style="margin: 0;">
@@ -53,7 +62,7 @@
                   <span class="slider"></span>
                 </div>
               </label>
-              <button id="btn-edit-server" class="btn-icon" aria-label="Edit Server">
+              <button id="btn-edit-server" class="btn-icon server-action-btn" aria-label="Edit Server">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                   class="lucide lucide-pencil">
@@ -62,7 +71,7 @@
                   <path d="m15 5 4 4" />
                 </svg>
               </button>
-              <button id="delete-server-btn" class="btn-danger btn-icon" aria-label="Delete Server">
+              <button id="delete-server-btn" class="btn-danger btn-icon server-action-btn" aria-label="Delete Server">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 6h18"></path>
@@ -73,50 +82,23 @@
             </div>
           </div>
         </div>
-
-        <!-- Current Server Edit Panel (Hidden by default) -->
-        <div id="current-server-config-panel" class="server-config-form hidden">
-          <!-- Details for the selected server -->
-          <div class="form-row">
-            <div class="form-group flex-1">
-              <label for="config-url" data-i18n="server_url_label">Server URL</label>
-              <input type="text" id="config-url" class="input-field" placeholder="http://127.0.0.1:8188" />
-            </div>
-            <div class="form-group flex-1">
-              <label for="config-out" data-i18n="server_output_dir">Output Directory</label>
-              <input type="text" id="config-out" class="input-field" placeholder="./outputs" />
-            </div>
-          </div>
-          <div class="actions">
-            <button id="save-config-btn" type="button" class="btn btn-primary" data-i18n="save_config">Save
-              Config</button>
-            <button id="btn-cancel-edit-server" type="button" class="btn btn-secondary"
-              data-i18n="cancel">Cancel</button>
-          </div>
-        </div>
       </div>
 
-      <!-- Add New Server Section -->
-      <div class="add-server-panel">
-        <h4 class="add-server-title" data-i18n="add_server_panel_title">Add New Server</h4>
-        <div class="add-server-inline">
-          <input type="text" id="new-server-id" class="input-field" data-i18n-placeholder="new_server_id_placeholder"
-            placeholder="new-server-id" autocomplete="off">
-          <input type="text" id="new-server-url" class="input-field" data-i18n-placeholder="new_server_url_placeholder"
-            placeholder="http://10.0.0.1:8188" autocomplete="off">
-          <button id="add-server-btn" type="button" class="btn btn-secondary"
-            data-i18n="add_server">Add Server</button>
-        </div>
+      <div id="server-empty-state" class="server-empty-state hidden">
+        <p class="section-meta" data-i18n="no_servers">No servers configured.</p>
+        <button id="btn-empty-add-server" type="button" class="btn btn-secondary" data-i18n="create_first_server">Create First Server</button>
       </div>
     </section>
 
     <!-- Workflow List -->
     <section class="card" aria-labelledby="workflow-manager-title">
-      <div class="section-header">
-        <h2 id="workflow-manager-title" class="card-title" data-i18n="workflow_manager">Workflows Manager</h2>
-        <div class="section-header-right">
-          <p id="workflow-summary" class="section-meta"></p>
-          <button id="add-workflow-btn" type="button" class="btn btn-secondary" data-i18n="register_new_short">+ New
+      <div class="section-header panel-toolbar">
+        <div class="panel-title-wrap">
+          <h2 id="workflow-manager-title" class="card-title" data-i18n="workflow_manager">Workflows Manager</h2>
+        </div>
+        <div class="panel-actions">
+          <p id="workflow-summary" class="section-meta panel-meta"></p>
+          <button id="add-workflow-btn" type="button" class="btn btn-secondary panel-action-btn" data-i18n="register_new_short">+ New
             Workflow</button>
         </div>
       </div>
@@ -233,6 +215,39 @@
       </div>
     </section>
   </main>
+
+  <div id="server-modal-overlay" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="server-modal-title">
+      <div class="modal-header">
+        <h3 id="server-modal-title" class="card-title">Add Server</h3>
+      </div>
+      <div class="modal-body modal-grid">
+        <div class="form-group form-group-half">
+          <label for="modal-server-id" data-i18n="server_id_label">Server ID</label>
+          <input type="text" id="modal-server-id" class="input-field" data-i18n-placeholder="new_server_id_placeholder"
+            placeholder="new-server-id" autocomplete="off">
+        </div>
+        <div class="form-group form-group-half">
+          <label for="modal-server-name" data-i18n="server_name">Server Name</label>
+          <input type="text" id="modal-server-name" class="input-field" data-i18n-placeholder="new_server_name_placeholder"
+            placeholder="Local" autocomplete="off">
+        </div>
+        <div class="form-group form-group-full">
+          <label for="modal-server-url" data-i18n="server_url_label">Server URL</label>
+          <input type="text" id="modal-server-url" class="input-field" data-i18n-placeholder="new_server_url_placeholder"
+            placeholder="http://10.0.0.1:8188" autocomplete="off">
+        </div>
+        <div class="form-group form-group-full">
+          <label for="modal-server-output" data-i18n="server_output_dir">Output Directory</label>
+          <input type="text" id="modal-server-output" class="input-field" placeholder="./outputs" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-close-server-modal" type="button" class="btn btn-secondary" data-i18n="cancel">Cancel</button>
+        <button id="btn-save-server-modal" type="button" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="/static/js/app.js"></script>
 </body>
