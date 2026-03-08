@@ -28,6 +28,7 @@ import {
   renderWorkflowLoading,
   renderWorkflowSummary,
 } from "./workflow-list-view.js";
+import { initPixelBlastBackground } from "./pixel-blast-bg.js";
 import { buildFinalSchema, extractSchemaParams, parseWorkflowUpload } from "./workflow-mapper.js";
 import { scrollToElement, setBusy, escapeHtml } from "./ui-utils.js";
 
@@ -42,6 +43,7 @@ const editorFilters = {
 const collapsedNodeIds = new Set();
 let latestEditorStats = null;
 let hasEditorUnsavedChanges = false;
+let serverModalMode = "add";
 
 function $(...args) {
   return window.jQuery(...args);
@@ -70,49 +72,83 @@ function refreshServerSelector() {
   const { servers } = getState();
   const currentId = getCurrentServerId();
 
-  elements.serverSelector.empty();
   if (servers.length === 0) {
+    elements.serverConfigContainer.addClass("hidden");
+    elements.serverEmptyState.removeClass("hidden");
+    elements.serverSelector.empty();
     elements.serverSelector.append(`<option value="">${escapeHtml(t("no_servers"))}</option>`);
     elements.serverSelector.prop("disabled", true);
-  } else {
-    servers.forEach(s => {
-      const selected = s.id === currentId ? "selected" : "";
-      const statusIcon = s.enabled ? "🟢" : "⚫";
-      elements.serverSelector.append(`<option value="${escapeHtml(s.id)}" ${selected}>${statusIcon} ${escapeHtml(s.name)}</option>`);
-    });
-    elements.serverSelector.prop("disabled", false);
+    elements.currentServerActions.hide();
+    return;
   }
+  elements.serverConfigContainer.removeClass("hidden");
+  elements.serverEmptyState.addClass("hidden");
 
-  // Update config fields based on current server
+  elements.serverSelector.empty();
+  servers.forEach(s => {
+    const selected = s.id === currentId ? "selected" : "";
+    const statusIcon = s.enabled ? "🟢" : "⚫";
+    elements.serverSelector.append(`<option value="${escapeHtml(s.id)}" ${selected}>${statusIcon} ${escapeHtml(s.name)}</option>`);
+  });
+  elements.serverSelector.prop("disabled", false);
+
   const currentServer = getCurrentServer();
   if (currentServer) {
-    elements.configUrl.val(currentServer.url || "");
-    elements.configOutput.val(currentServer.output_dir || "");
     elements.serverEnabledToggle.prop("checked", currentServer.enabled);
     elements.serverEnabledLabel.attr("data-i18n", currentServer.enabled ? "server_enabled" : "server_disabled");
     elements.serverEnabledLabel.text(t(currentServer.enabled ? "server_enabled" : "server_disabled"));
+    elements.serverEnabledLabel.toggleClass("status-on", currentServer.enabled);
+    elements.serverEnabledLabel.toggleClass("status-off", !currentServer.enabled);
     elements.currentServerActions.show();
-
-    // reset edit panel
-    closeServerEditPanel();
   } else {
-    elements.configUrl.val("");
-    elements.configOutput.val("");
+    elements.serverEnabledLabel.removeClass("status-on status-off");
     elements.currentServerActions.hide();
-    elements.currentServerConfigPanel.addClass("hidden");
   }
 }
 
-// ── Edit Panel Interactivity ──────────────────────────────────────
+// ── Server Modal ─────────────────────────────────────────────────
 
-function openServerEditPanel() {
-  elements.currentServerConfigPanel.removeClass("hidden");
-  elements.btnEditServer.addClass("hidden");
+function refreshServerModalText() {
+  if (serverModalMode === "edit") {
+    elements.serverModalTitle.text(t("edit_server_modal_title"));
+    elements.serverModalSaveBtn.text(t("save_server_changes"));
+  } else {
+    elements.serverModalTitle.text(t("add_server_modal_title"));
+    elements.serverModalSaveBtn.text(t("save_and_connect"));
+  }
 }
 
-function closeServerEditPanel() {
-  elements.currentServerConfigPanel.addClass("hidden");
-  elements.btnEditServer.removeClass("hidden");
+function openServerModal(mode = "add") {
+  serverModalMode = mode;
+  const currentServer = getCurrentServer();
+
+  if (mode === "edit" && currentServer) {
+    elements.serverModalId.val(currentServer.id || "").prop("disabled", true);
+    elements.serverModalName.val(currentServer.name || currentServer.id || "");
+    elements.serverModalUrl.val(currentServer.url || "");
+    elements.serverModalOutput.val(currentServer.output_dir || "./outputs");
+  } else {
+    elements.serverModalId.val("").prop("disabled", false);
+    elements.serverModalName.val("");
+    elements.serverModalUrl.val("");
+    elements.serverModalOutput.val("./outputs");
+  }
+
+  refreshServerModalText();
+  elements.serverModalOverlay.removeClass("hidden").attr("aria-hidden", "false");
+  $("body").addClass("modal-open");
+  window.setTimeout(() => {
+    if (mode === "edit") {
+      elements.serverModalName.trigger("focus");
+      return;
+    }
+    elements.serverModalId.trigger("focus");
+  }, 0);
+}
+
+function closeServerModal() {
+  elements.serverModalOverlay.addClass("hidden").attr("aria-hidden", "true");
+  $("body").removeClass("modal-open");
 }
 
 function refreshWorkflowPanel() {
@@ -379,69 +415,63 @@ async function loadServers() {
   }
 }
 
-async function saveCurrentServerConfig() {
+async function saveServerFromModal() {
   const currentServer = getCurrentServer();
-  if (!currentServer) return;
+  const id = elements.serverModalId.val().trim();
+  const name = elements.serverModalName.val().trim() || id;
+  const url = elements.serverModalUrl.val().trim();
+  const output_dir = elements.serverModalOutput.val().trim() || "./outputs";
 
-  setBusy(elements.saveConfigButton, true);
-  try {
-    const url = elements.configUrl.val().trim();
-    const output_dir = elements.configOutput.val().trim();
-
-    await fetchJSON(`/api/servers/${encodeURIComponent(currentServer.id)}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...currentServer, url, output_dir }),
-    });
-
-    await loadServers();
-    showToast(t("ok_save_cfg"), "success");
-    closeServerEditPanel();
-  } catch (error) {
-    showToast(error.message || t("err_save_cfg"), "error");
-  } finally {
-    setBusy(elements.saveConfigButton, false);
-  }
-}
-
-async function addNewServer() {
-  const btn = $("#add-server-btn");
-  const idInput = $("#new-server-id");
-  const urlInput = $("#new-server-url");
-
-  const id = idInput.val().trim();
-  const url = urlInput.val().trim();
-
-  if (!id || !url) {
-    showToast(t("err_server_id_url_required"), "error");
+  if (!id || !name || !url) {
+    showToast(t("err_server_name_id_url_required"), "error");
     return;
   }
 
-  setBusy(btn, true);
-  try {
-    await fetchJSON("/api/servers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id,
-        name: id,
-        url,
-        enabled: true,
-        output_dir: "./outputs"
-      }),
-    });
+  if (serverModalMode === "edit" && !currentServer) {
+    showToast(t("err_no_server_selected"), "error");
+    return;
+  }
 
-    idInput.val("");
-    urlInput.val("");
+  setBusy(elements.serverModalSaveBtn, true);
+  try {
+    if (serverModalMode === "edit") {
+      await fetchJSON(`/api/servers/${encodeURIComponent(currentServer.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: currentServer.id,
+          name,
+          url,
+          enabled: currentServer.enabled,
+          output_dir,
+        }),
+      });
+      setCurrentServerId(currentServer.id);
+      showToast(t("ok_save_cfg"), "success");
+    } else {
+      await fetchJSON("/api/servers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          name,
+          url,
+          enabled: true,
+          output_dir,
+        }),
+      });
+      setCurrentServerId(id);
+      showToast(t("ok_add_server"), "success");
+    }
+
     await loadServers();
-    setCurrentServerId(id);
     refreshServerSelector();
     refreshWorkflowPanel();
-    showToast(t("ok_add_server"), "success");
+    closeServerModal();
   } catch (error) {
-    showToast(error.message || t("err_add_server"), "error");
+    showToast(error.message || t(serverModalMode === "edit" ? "err_save_cfg" : "err_add_server"), "error");
   } finally {
-    setBusy(btn, false);
+    setBusy(elements.serverModalSaveBtn, false);
   }
 }
 
@@ -687,12 +717,18 @@ async function handleWorkflowFile(file) {
 // ── Event Binding ─────────────────────────────────────────────────
 
 function syncLanguage() {
-  setLanguage(getState().currentLang);
-  elements.langSelect.val(getState().currentLang);
+  const currentLanguage = getState().currentLang;
+  setLanguage(currentLanguage);
+  elements.langSelect.val(currentLanguage);
   applyTranslations();
+  refreshServerModalText();
   refreshServerSelector();
-  refreshWorkflowPanel();
-  refreshEditorPanel();
+  if (!elements.viewMain.hasClass("hidden")) {
+    refreshWorkflowPanel();
+  }
+  if (!elements.viewEditor.hasClass("hidden")) {
+    refreshEditorPanel();
+  }
 }
 
 function bindServerEvents() {
@@ -703,7 +739,24 @@ function bindServerEvents() {
     refreshWorkflowPanel(); // updates workflow list
   });
 
-  $("#add-server-btn").on("click", addNewServer);
+  elements.btnToggleAddServer.on("click", () => openServerModal("add"));
+  elements.btnEmptyAddServer.on("click", () => openServerModal("add"));
+  elements.btnEditServer.on("click", () => openServerModal("edit"));
+  elements.serverModalCloseBtn.on("click", closeServerModal);
+  elements.serverModalSaveBtn.on("click", saveServerFromModal);
+
+  elements.serverModalOverlay.on("click", (event) => {
+    if (event.target === elements.serverModalOverlay[0]) {
+      closeServerModal();
+    }
+  });
+
+  $(document).on("keydown", (event) => {
+    if (event.key !== "Escape" || elements.serverModalOverlay.hasClass("hidden")) {
+      return;
+    }
+    closeServerModal();
+  });
 
   elements.serverEnabledToggle.on("change", async function () {
     const enabled = $(this).prop("checked");
@@ -751,10 +804,6 @@ function bindServerEvents() {
 }
 
 function bindWorkflowEvents() {
-  // Edit Server
-  elements.btnEditServer.on("click", openServerEditPanel);
-  elements.btnCancelEditServer.on("click", closeServerEditPanel);
-
   // New Workflow
   elements.addWorkflowBtn.on("click", () => {
     if (!getCurrentServerId()) {
@@ -942,14 +991,22 @@ function bindUploadInteractions() {
 
 function bindEvents() {
   elements.langSelect.on("change", function () {
-    setLanguage($(this).val());
+    const nextLanguage = $(this).val();
+    if (nextLanguage === getState().currentLang) {
+      return;
+    }
+    setLanguage(nextLanguage);
     applyTranslations();
+    refreshServerModalText();
     refreshServerSelector();
-    refreshWorkflowPanel();
-    refreshEditorPanel();
+    if (!elements.viewMain.hasClass("hidden")) {
+      refreshWorkflowPanel();
+    }
+    if (!elements.viewEditor.hasClass("hidden")) {
+      refreshEditorPanel();
+    }
   });
 
-  elements.saveConfigButton.on("click", saveCurrentServerConfig);
   elements.saveWorkflowButton.on("click", saveWorkflow);
 
   bindServerEvents();
@@ -979,6 +1036,26 @@ async function init() {
     renderFatalJQueryError(new Error("Local jQuery failed to initialize."));
     return;
   }
+
+  initPixelBlastBackground({
+    variant: "circle",
+    pixelSize: 4,
+    color: "#a0223b",
+    patternScale: 2,
+    patternDensity: 1,
+    pixelSizeJitter: 0,
+    enableRipples: true,
+    rippleSpeed: 0.4,
+    rippleThickness: 0.12,
+    rippleIntensityScale: 1.5,
+    liquid: false,
+    liquidStrength: 0.12,
+    liquidRadius: 1.2,
+    liquidWobbleSpeed: 5,
+    speed: 0.5,
+    edgeFade: 0.25,
+    transparent: true,
+  });
 
   elements = getElements();
   syncLanguage();
