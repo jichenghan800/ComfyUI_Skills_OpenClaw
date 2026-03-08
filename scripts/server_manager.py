@@ -16,9 +16,19 @@ import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from shared.config import CONFIG_PATH, OUTPUTS_DIR
+from shared.config import CONFIG_PATH
 from shared.json_utils import load_json, save_json
 from shared.runtime_config import get_runtime_config
+
+
+def _is_valid_server_id(value: str) -> bool:
+    if not value:
+        return False
+    if value in {".", ".."}:
+        return False
+    if any(c in value for c in ("/", "\\", " ")):
+        return False
+    return True
 
 
 def _load_config() -> dict:
@@ -54,6 +64,10 @@ def cmd_add(args):
     config = _load_config()
     servers = config.get("servers", [])
 
+    if not _is_valid_server_id(args.id):
+        print("Error: Invalid server id. Do not use '/', '\\', spaces, '.' or '..'.")
+        sys.exit(1)
+
     # Check for duplicate ID
     for s in servers:
         if s.get("id") == args.id:
@@ -65,7 +79,7 @@ def cmd_add(args):
         "name": args.name or args.id,
         "url": args.url,
         "enabled": True,
-        "output_dir": args.output_dir or str(OUTPUTS_DIR),
+        "output_dir": args.output_dir or "./outputs",
     }
     servers.append(new_server)
     config["servers"] = servers

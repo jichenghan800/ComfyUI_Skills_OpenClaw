@@ -8,6 +8,7 @@ DATA_DIR = BASE_DIR / "data"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 DEFAULT_COMFYUI_SERVER_URL = "http://127.0.0.1:8188"
 DEFAULT_SERVER_ID = "local"
+DEFAULT_OUTPUT_DIR = "./outputs"
 
 
 def default_server() -> dict[str, object]:
@@ -16,7 +17,7 @@ def default_server() -> dict[str, object]:
         "name": "Local",
         "url": DEFAULT_COMFYUI_SERVER_URL,
         "enabled": True,
-        "output_dir": str(OUTPUTS_DIR),
+        "output_dir": DEFAULT_OUTPUT_DIR,
     }
 
 

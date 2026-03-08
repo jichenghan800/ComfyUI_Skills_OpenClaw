@@ -40,5 +40,5 @@ def ensure_runtime_dirs() -> None:
 def default_config() -> dict[str, str]:
     return {
         "comfyui_server_url": DEFAULT_COMFYUI_SERVER_URL,
-        "output_dir": str(OUTPUTS_DIR),
+        "output_dir": "./outputs",
     }

@@ -19,6 +19,17 @@ logger = getLogger(__name__)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def is_valid_identifier(value: str) -> bool:
+    """Reject path-like identifiers to prevent path traversal."""
+    if not value:
+        return False
+    if value in {".", ".."}:
+        return False
+    if any(sep in value for sep in ("/", "\\")):
+        return False
+    return True
+
+
 def parse_workflow_arg(workflow_arg: str) -> tuple[str, str]:
     """Parse a composite workflow argument like 'server_id/workflow_id'.
 
@@ -73,6 +84,12 @@ def main():
 
     # 1. Parse composite workflow argument
     server_id, workflow_id = parse_workflow_arg(args.workflow)
+    if not is_valid_identifier(server_id):
+        print(json.dumps({"error": "Invalid server id in --workflow"}))
+        return
+    if not is_valid_identifier(workflow_id):
+        print(json.dumps({"error": "Invalid workflow id in --workflow"}))
+        return
 
     # 2. Look up server config
     server = get_server_by_id(server_id)
