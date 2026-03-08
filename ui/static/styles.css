@@ -638,7 +638,7 @@ h1 {
   height: 18px;
   min-height: 18px;
   padding: 0;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid rgba(148, 163, 184, 0.44);
   background: rgba(255, 255, 255, 0.03);
   color: #e5e7eb;
@@ -660,10 +660,27 @@ h1 {
   height: 16px;
 }
 
+.workflow-action-btn {
+  border-color: rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+
+.workflow-action-btn:hover,
+.workflow-action-btn:focus-visible {
+  border-color: rgba(203, 213, 225, 0.58);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
 .server-delete-btn,
 .workflow-delete-btn {
   border-color: rgba(239, 68, 68, 0.42);
   color: #fda4af;
+}
+
+.workflow-delete-btn {
+  border-color: rgba(148, 163, 184, 0.14);
+  color: var(--text-main);
 }
 
 .server-delete-btn:hover,
@@ -674,6 +691,14 @@ h1 {
   border-color: rgba(251, 113, 133, 0.6);
   box-shadow: 0 0 0 1px rgba(251, 113, 133, 0.14);
   color: #fecdd3;
+}
+
+.workflow-delete-btn:hover,
+.workflow-delete-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(203, 213, 225, 0.58);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
 }
 
 body.modal-open {
@@ -1085,7 +1110,7 @@ button:disabled,
   align-items: center;
   gap: 10px;
   padding: 8px 8px 8px 10px;
-  border-radius: 4px;
+  border-radius: 6px;
   border: 1px solid rgba(148, 163, 184, 0.14);
   background: rgba(255, 255, 255, 0.08);
   font-size: 14px;
