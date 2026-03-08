@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 # Add scripts to path for shared imports
@@ -21,6 +25,7 @@ except ImportError:
     from settings import DEFAULT_HOST, DEFAULT_PORT, STATIC_DIR, ensure_runtime_dirs
 
 service = UIStorageService()
+logger = logging.getLogger(__name__)
 
 
 def create_app() -> FastAPI:
@@ -28,6 +33,17 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="ComfyUI OpenClaw Skill Manager")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+        errors = jsonable_encoder(exc.errors())
+        logger.warning(
+            "Validation failed for %s %s: %s",
+            request.method,
+            request.url.path,
+            errors,
+        )
+        return JSONResponse(status_code=422, content={"detail": errors})
 
     @app.get("/")
     async def read_index() -> FileResponse:
