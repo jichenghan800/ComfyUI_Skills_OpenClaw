@@ -1,4 +1,65 @@
 let globalBindingsInitialized = false;
+const menuState = new WeakMap();
+
+function getMenuElements(root) {
+  const state = menuState.get(root) || {};
+  const menu = state.menu || root.querySelector(".custom-select-menu");
+  const anchor = state.anchor || null;
+  if (menu && !menuState.has(root)) {
+    menuState.set(root, { menu, anchor: null });
+  }
+  return {
+    menu,
+    anchor,
+  };
+}
+
+function attachMenuToBody(root) {
+  const state = menuState.get(root);
+  const trigger = root.querySelector(".custom-select-trigger");
+  if (!state?.menu || !trigger) {
+    return;
+  }
+
+  if (!state.anchor) {
+    state.anchor = document.createElement("span");
+    state.anchor.className = "custom-select-menu-anchor hidden";
+    root.appendChild(state.anchor);
+  }
+
+  document.body.appendChild(state.menu);
+  state.menu.classList.add("is-open");
+  const rect = trigger.getBoundingClientRect();
+  state.menu.style.position = "fixed";
+  state.menu.style.top = `${rect.bottom + 8}px`;
+  state.menu.style.left = `${rect.left}px`;
+  state.menu.style.width = `${rect.width}px`;
+}
+
+function restoreMenu(root) {
+  const state = menuState.get(root);
+  if (!state?.menu || !state.anchor) {
+    return;
+  }
+
+  state.menu.removeAttribute("style");
+  state.menu.classList.remove("is-open");
+  state.anchor.insertAdjacentElement("afterend", state.menu);
+}
+
+function repositionOpenMenus() {
+  document.querySelectorAll(".custom-select.is-open").forEach((root) => {
+    const state = menuState.get(root);
+    const trigger = root.querySelector(".custom-select-trigger");
+    if (!state?.menu || !trigger) {
+      return;
+    }
+    const rect = trigger.getBoundingClientRect();
+    state.menu.style.top = `${rect.bottom + 8}px`;
+    state.menu.style.left = `${rect.left}px`;
+    state.menu.style.width = `${rect.width}px`;
+  });
+}
 
 function clearOpenHosts() {
   document.querySelectorAll(".custom-select-host-open").forEach((element) => {
@@ -24,6 +85,7 @@ function closeAllCustomSelects(except = null) {
     if (trigger) {
       trigger.setAttribute("aria-expanded", "false");
     }
+    restoreMenu(root);
   });
 
   if (!except) {
@@ -39,7 +101,7 @@ function getSelectedLabel(select) {
 function renderCustomSelect(select, root) {
   const trigger = root.querySelector(".custom-select-trigger");
   const value = root.querySelector(".custom-select-value");
-  const menu = root.querySelector(".custom-select-menu");
+  const { menu } = getMenuElements(root);
   if (!trigger || !value || !menu) {
     return;
   }
@@ -68,7 +130,7 @@ function renderCustomSelect(select, root) {
 
 function bindSelect(select, root) {
   const trigger = root.querySelector(".custom-select-trigger");
-  const menu = root.querySelector(".custom-select-menu");
+  const { menu } = getMenuElements(root);
   if (!trigger || !menu) {
     return;
   }
@@ -94,6 +156,7 @@ function bindSelect(select, root) {
     trigger.setAttribute("aria-expanded", nextOpen ? "true" : "false");
     if (nextOpen) {
       markOpenHost(root);
+      attachMenuToBody(root);
     } else {
       clearOpenHosts();
     }
@@ -161,6 +224,15 @@ function ensureSelectRoot(select) {
     select.insertAdjacentElement("afterend", root);
   }
 
+  const menu = root.querySelector(".custom-select-menu");
+  if (menu) {
+    const existingState = menuState.get(root) || {};
+    menuState.set(root, {
+      menu,
+      anchor: existingState.anchor || null,
+    });
+  }
+
   root.classList.toggle("is-lang-select", select.classList.contains("lang-select"));
   root.classList.toggle("is-server-select", select.classList.contains("server-selector"));
 
@@ -181,6 +253,9 @@ export function enhanceCustomSelects(root = document) {
         closeAllCustomSelects();
       }
     });
+
+    window.addEventListener("resize", repositionOpenMenus);
+    window.addEventListener("scroll", repositionOpenMenus, true);
 
     globalBindingsInitialized = true;
   }

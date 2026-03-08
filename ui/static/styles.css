@@ -474,7 +474,8 @@ h1 {
   overflow-y: auto;
 }
 
-.custom-select.is-open .custom-select-menu {
+.custom-select.is-open .custom-select-menu,
+.custom-select-menu.is-open {
   display: block;
   animation: customSelectFadeIn 0.16s ease-out;
 }
