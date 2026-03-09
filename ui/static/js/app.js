@@ -621,7 +621,10 @@ async function toggleWorkflowStatus(serverId, workflowId, $checkbox) {
     );
     setWorkflows(updatedWorkflows);
     refreshWorkflowPanel();
-    showToast(t("ok_toggle_wf"), "success");
+    showToast(
+      t(enabled ? "ok_toggle_wf_enabled" : "ok_toggle_wf_disabled", { id: workflowId }),
+      "success",
+    );
   } catch {
     $checkbox.prop("checked", !$checkbox.prop("checked"));
     showToast(t("err_toggle_wf"), "error");
@@ -889,7 +892,12 @@ function bindServerEvents() {
         body: JSON.stringify({ enabled }),
       });
       await loadServers();
-      showToast(t("ok_toggle_server"), "success");
+      showToast(
+        t(enabled ? "ok_toggle_server_enabled" : "ok_toggle_server_disabled", {
+          id: currentServer.name || currentServer.id,
+        }),
+        "success",
+      );
     } catch (e) {
       $(this).prop("checked", !enabled);
       showToast(t("err_toggle_server"), "error");
