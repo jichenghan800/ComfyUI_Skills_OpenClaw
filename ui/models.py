@@ -134,3 +134,38 @@ class SchemaModel(BaseModel):
 
 class ToggleModel(BaseModel):
     enabled: bool
+
+
+class WorkflowOrderModel(BaseModel):
+    workflow_ids: list[str] = Field(min_length=1)
+
+    @field_validator("workflow_ids", mode="before")
+    @classmethod
+    def normalize_workflow_ids(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            raise ValueError("workflow_ids must be a list")
+        return [str(item) for item in value]
+
+    @field_validator("workflow_ids")
+    @classmethod
+    def validate_workflow_ids(cls, value: list[str]) -> list[str]:
+        normalized: list[str] = []
+        seen: set[str] = set()
+
+        for workflow_id in value:
+            workflow_id = workflow_id.strip()
+            if not workflow_id:
+                raise ValueError("Workflow ID is required")
+            if any(separator in workflow_id for separator in ("/", "\\")) or workflow_id in {".", ".."}:
+                raise ValueError("Workflow ID contains invalid path characters")
+            if workflow_id in seen:
+                continue
+            seen.add(workflow_id)
+            normalized.append(workflow_id)
+
+        if not normalized:
+            raise ValueError("At least one workflow ID is required")
+
+        return normalized

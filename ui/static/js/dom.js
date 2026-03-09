@@ -36,6 +36,8 @@ export function getElements() {
     // ── Workflow list ──
     workflowList: $("#workflow-list"),
     workflowSummary: $("#workflow-summary"),
+    workflowSearch: $("#workflow-search"),
+    workflowSort: $("#workflow-sort"),
     addWorkflowBtn: $("#add-workflow-btn"),
     // ── Editor (View 2) ──
     editorBackBtn: $("#editor-back-btn"),

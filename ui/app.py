@@ -16,11 +16,11 @@ _project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_project_root / "scripts"))
 
 try:
-    from .models import ConfigModel, CreateServerModel, SchemaModel, ServerModel, ToggleModel
+    from .models import ConfigModel, CreateServerModel, SchemaModel, ServerModel, ToggleModel, WorkflowOrderModel
     from .services import UIStorageService
     from .settings import DEFAULT_HOST, DEFAULT_PORT, STATIC_DIR, ensure_runtime_dirs
 except ImportError:
-    from models import ConfigModel, CreateServerModel, SchemaModel, ServerModel, ToggleModel
+    from models import ConfigModel, CreateServerModel, SchemaModel, ServerModel, ToggleModel, WorkflowOrderModel
     from services import UIStorageService
     from settings import DEFAULT_HOST, DEFAULT_PORT, STATIC_DIR, ensure_runtime_dirs
 
@@ -155,6 +155,16 @@ def create_app() -> FastAPI:
     async def delete_workflow(server_id: str, workflow_id: str) -> dict:
         service.delete_workflow(server_id, workflow_id)
         return {"status": "success"}
+
+    @app.post("/api/servers/{server_id}/workflows/reorder")
+    async def reorder_workflows(server_id: str, data: WorkflowOrderModel) -> dict:
+        try:
+            workflow_order = service.reorder_workflows(server_id, data.workflow_ids)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        return {"status": "success", "workflow_order": workflow_order}
 
     return app
 

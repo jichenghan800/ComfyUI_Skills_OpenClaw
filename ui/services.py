@@ -40,6 +40,8 @@ class WorkflowSummary:
     server_id: str
     server_name: str
     enabled: bool
+    description: str = ""
+    updated_at: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -47,6 +49,8 @@ class WorkflowSummary:
             "server_id": self.server_id,
             "server_name": self.server_name,
             "enabled": self.enabled,
+            "description": self.description,
+            "updated_at": self.updated_at,
         }
 
 
@@ -89,6 +93,7 @@ class UIStorageService:
             "url": str(server.get("url") or "").strip(),
             "enabled": bool(server.get("enabled", True)),
             "output_dir": str(server.get("output_dir") or "./outputs").strip() or "./outputs",
+            "workflow_order": [],
         }
 
         servers.append(normalized_server)
@@ -146,27 +151,47 @@ class UIStorageService:
             sid = server.get("id", "")
             sname = server.get("name", sid)
             schemas_dir = get_server_schemas_dir(sid)
+            workflow_order = [
+                str(workflow_id).strip()
+                for workflow_id in server.get("workflow_order", [])
+                if str(workflow_id).strip()
+            ]
+            order_index = {workflow_id: index for index, workflow_id in enumerate(workflow_order)}
 
             if not schemas_dir.exists():
                 continue
 
-            for schema_path in sorted(schemas_dir.glob("*.json")):
+            server_workflows: list[WorkflowSummary] = []
+
+            for schema_path in schemas_dir.glob("*.json"):
                 wf_id = schema_path.stem
                 enabled = True
+                description = ""
                 try:
                     schema_data = _read_json(schema_path, fallback={})
                     if isinstance(schema_data, dict):
                         enabled = bool(schema_data.get("enabled", True))
                         wf_id = str(schema_data.get("workflow_id") or wf_id)
+                        description = str(schema_data.get("description") or "")
                 except Exception:
                     enabled = True
 
-                workflows.append(WorkflowSummary(
+                server_workflows.append(WorkflowSummary(
                     workflow_id=wf_id,
                     server_id=sid,
                     server_name=sname,
                     enabled=enabled,
+                    description=description,
+                    updated_at=schema_path.stat().st_mtime,
                 ))
+
+            server_workflows.sort(
+                key=lambda workflow: (
+                    order_index.get(workflow.workflow_id, len(order_index)),
+                    workflow.workflow_id.lower(),
+                ),
+            )
+            workflows.extend(server_workflows)
 
         return workflows
 
@@ -227,6 +252,8 @@ class UIStorageService:
         }
         _write_json(schema_path, schema)
 
+        self._sync_workflow_order(server_id, source_workflow_id, workflow_id)
+
         if source_workflow_id != workflow_id:
             for obsolete_path in (source_workflow_path, source_schema_path):
                 if obsolete_path.exists():
@@ -254,6 +281,26 @@ class UIStorageService:
         for path in (self._workflow_path(server_id, workflow_id), self._schema_path(server_id, workflow_id)):
             if path.exists():
                 path.unlink()
+        self._remove_workflow_from_order(server_id, workflow_id)
+
+    def reorder_workflows(self, server_id: str, workflow_ids: list[str]) -> list[str]:
+        config = self.get_config()
+        server = self._get_server_entry(config, server_id)
+        if server is None:
+            raise FileNotFoundError(f"Server '{server_id}' not found")
+
+        available_ids = {workflow.workflow_id for workflow in self.list_workflows(server_id)}
+        normalized_order = [workflow_id for workflow_id in workflow_ids if workflow_id in available_ids]
+
+        if not normalized_order:
+            raise ValueError("No valid workflows were provided for ordering")
+
+        remaining_ids = sorted(available_ids - set(normalized_order), key=str.lower)
+        final_order = normalized_order + remaining_ids
+
+        server["workflow_order"] = final_order
+        self.save_config(config)
+        return final_order
 
     @staticmethod
     def _workflow_path(server_id: str, workflow_id: str) -> Path:
@@ -281,3 +328,51 @@ class UIStorageService:
             if candidate not in existing_ids:
                 return candidate
             index += 1
+
+    def _get_server_entry(self, config: dict[str, Any], server_id: str) -> dict[str, Any] | None:
+        for server in config.get("servers", []):
+            if server.get("id") == server_id:
+                return server
+        return None
+
+    def _sync_workflow_order(self, server_id: str, source_workflow_id: str, workflow_id: str) -> None:
+        config = self.get_config()
+        server = self._get_server_entry(config, server_id)
+        if server is None:
+            return
+
+        workflow_order = [str(item).strip() for item in server.get("workflow_order", []) if str(item).strip()]
+        if source_workflow_id == workflow_id:
+            if workflow_id not in workflow_order:
+                workflow_order.append(workflow_id)
+        else:
+            replaced = False
+            next_order: list[str] = []
+            for existing_workflow_id in workflow_order:
+                if existing_workflow_id == source_workflow_id:
+                    if not replaced:
+                        next_order.append(workflow_id)
+                        replaced = True
+                    continue
+                if existing_workflow_id != workflow_id:
+                    next_order.append(existing_workflow_id)
+
+            if not replaced:
+                next_order.append(workflow_id)
+            workflow_order = next_order
+
+        server["workflow_order"] = workflow_order
+        self.save_config(config)
+
+    def _remove_workflow_from_order(self, server_id: str, workflow_id: str) -> None:
+        config = self.get_config()
+        server = self._get_server_entry(config, server_id)
+        if server is None:
+            return
+
+        server["workflow_order"] = [
+            str(item).strip()
+            for item in server.get("workflow_order", [])
+            if str(item).strip() and str(item).strip() != workflow_id
+        ]
+        self.save_config(config)

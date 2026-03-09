@@ -2,24 +2,39 @@ import { t } from "./i18n.js";
 import { getState, getCurrentServerId } from "./state.js";
 import { escapeHtml } from "./ui-utils.js";
 
-export function renderWorkflowSummary($container) {
+export function renderWorkflowSummary($container, visibleWorkflows = null) {
   const { workflows } = getState();
   const serverId = getCurrentServerId();
   const serverWorkflows = workflows.filter((wf) => wf.server_id === serverId);
-  $container.text(serverWorkflows.length ? t("workflow_count", { count: serverWorkflows.length }) : "");
+  const visibleCount = Array.isArray(visibleWorkflows) ? visibleWorkflows.length : serverWorkflows.length;
+
+  if (!serverWorkflows.length) {
+    $container.text("");
+    return;
+  }
+
+  $container.text(
+    visibleCount === serverWorkflows.length
+      ? t("workflow_count", { count: serverWorkflows.length })
+      : t("workflow_count_filtered", { visible: visibleCount, total: serverWorkflows.length }),
+  );
 }
 
 export function renderWorkflowLoading($container) {
   $container.html(`<div class="empty-state">${escapeHtml(t("loading"))}</div>`);
 }
 
-export function renderWorkflowList($container) {
-  const { workflows } = getState();
-  const serverId = getCurrentServerId();
-  const serverWorkflows = workflows.filter((wf) => wf.server_id === serverId);
+export function renderWorkflowList($container, serverWorkflows = [], options = {}) {
+  const {
+    isCustomOrder = false,
+    dragEnabled = false,
+    hasAnyWorkflows = serverWorkflows.length > 0,
+  } = options;
 
   if (!serverWorkflows.length) {
-    $container.html(`<div class="empty-state">${escapeHtml(t("no_workflows"))}</div>`);
+    $container.html(
+      `<div class="empty-state">${escapeHtml(t(hasAnyWorkflows ? "no_workflows_match" : "no_workflows"))}</div>`,
+    );
     return;
   }
 
@@ -29,8 +44,27 @@ export function renderWorkflowList($container) {
         const enabledClass = workflow.enabled ? "" : " is-disabled";
         const stateText = workflow.enabled ? t("wf_enabled") : t("wf_disabled");
         const desc = workflow.description || "";
+        const dragHandle = isCustomOrder
+          ? `
+              <button
+                type="button"
+                class="btn btn-secondary btn-icon workflow-drag-handle${dragEnabled ? "" : " is-disabled"}"
+                data-action="drag-handle"
+                draggable="${dragEnabled ? "true" : "false"}"
+                aria-label="${escapeHtml(t("workflow_drag_handle", { id: workflow.id }))}"
+                title="${escapeHtml(t("workflow_drag_handle", { id: workflow.id }))}"
+                tabindex="-1"
+              >
+                <span aria-hidden="true">&#x2261;</span>
+              </button>
+            `
+          : "";
         return `
-          <article class="workflow-item" data-workflow-id="${escapeHtml(workflow.id)}" data-server-id="${escapeHtml(workflow.server_id)}">
+          <article
+            class="workflow-item${dragEnabled ? " is-reorderable" : ""}"
+            data-workflow-id="${escapeHtml(workflow.id)}"
+            data-server-id="${escapeHtml(workflow.server_id)}"
+          >
             <div class="workflow-main">
               <div class="workflow-name-row">
                 <span class="status-dot${enabledClass}" aria-hidden="true">&#x25CF;</span>
@@ -40,6 +74,7 @@ export function renderWorkflowList($container) {
               ${desc ? `<p class="workflow-desc">${escapeHtml(desc)}</p>` : ""}
             </div>
             <div class="workflow-actions">
+              ${dragHandle}
               <div class="workflow-status-toggle">
                 <label class="toggle-inline" aria-label="${escapeHtml(t("toggle_workflow", { id: workflow.id }))}">
                   <span class="workflow-enabled-label${workflow.enabled ? " status-on" : " status-off"}">${escapeHtml(stateText)}</span>

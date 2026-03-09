@@ -104,6 +104,17 @@
             Workflow</button>
         </div>
       </div>
+      <div class="workflow-toolbar">
+        <input id="workflow-search" type="text" class="input-field" data-i18n-placeholder="workflow_search_placeholder"
+          placeholder="Search workflows by name or description">
+        <select id="workflow-sort" class="server-selector" aria-label="Workflow sort order">
+          <option value="custom" data-i18n="workflow_sort_custom">Custom order</option>
+          <option value="updated_desc" data-i18n="workflow_sort_recent">Recently updated</option>
+          <option value="name_asc" data-i18n="workflow_sort_name_asc">Workflow ID (A-Z)</option>
+          <option value="name_desc" data-i18n="workflow_sort_name_desc">Workflow ID (Z-A)</option>
+          <option value="enabled_first" data-i18n="workflow_sort_enabled">Enabled first</option>
+        </select>
+      </div>
       <div id="workflow-list" class="workflow-list" aria-live="polite"></div>
     </section>
   </main>

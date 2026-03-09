@@ -41,6 +41,10 @@ const editorFilters = {
   nodeSort: "node_id_asc",
   paramSort: "default",
 };
+const workflowListFilters = {
+  query: "",
+  sort: "custom",
+};
 const collapsedNodeIds = new Set();
 const expandedParamKeys = new Set();
 let latestEditorStats = null;
@@ -49,6 +53,7 @@ let serverModalMode = "add";
 let confirmModalResolver = null;
 let confirmModalPayloadBuilder = null;
 let lastAutoWorkflowId = "";
+let draggedWorkflowId = null;
 
 function $(...args) {
   return window.jQuery(...args);
@@ -233,8 +238,98 @@ function openConfirmModal({
 }
 
 function refreshWorkflowPanel() {
-  renderWorkflowSummary(elements.workflowSummary);
-  renderWorkflowList(elements.workflowList);
+  const serverWorkflows = getCurrentServerWorkflows();
+  const visibleWorkflows = getVisibleWorkflows();
+  renderWorkflowSummary(elements.workflowSummary, visibleWorkflows);
+  renderWorkflowList(elements.workflowList, visibleWorkflows, {
+    isCustomOrder: workflowListFilters.sort === "custom",
+    dragEnabled: canDragReorderWorkflows(),
+    hasAnyWorkflows: serverWorkflows.length > 0,
+  });
+}
+
+function getCurrentServerWorkflows() {
+  const { workflows } = getState();
+  const serverId = getCurrentServerId();
+  return workflows.filter((workflow) => workflow.server_id === serverId);
+}
+
+function getVisibleWorkflows() {
+  const query = workflowListFilters.query.trim().toLowerCase();
+  const sorted = sortWorkflows(getCurrentServerWorkflows(), workflowListFilters.sort);
+
+  if (!query) {
+    return sorted;
+  }
+
+  return sorted.filter((workflow) => {
+    const haystacks = [
+      workflow.id,
+      workflow.description,
+      workflow.server_name,
+      workflow.server_id,
+    ];
+
+    return haystacks.some((value) => String(value || "").toLowerCase().includes(query));
+  });
+}
+
+function sortWorkflows(workflows, sortMode) {
+  const items = [...workflows];
+
+  switch (sortMode) {
+    case "updated_desc":
+      return items.sort((first, second) => (second.updated_at || 0) - (first.updated_at || 0));
+    case "name_asc":
+      return items.sort((first, second) => String(first.id).localeCompare(String(second.id)));
+    case "name_desc":
+      return items.sort((first, second) => String(second.id).localeCompare(String(first.id)));
+    case "enabled_first":
+      return items.sort((first, second) => {
+        if (Boolean(first.enabled) !== Boolean(second.enabled)) {
+          return first.enabled ? -1 : 1;
+        }
+        return String(first.id).localeCompare(String(second.id));
+      });
+    case "custom":
+    default:
+      return items;
+  }
+}
+
+function canDragReorderWorkflows() {
+  return workflowListFilters.sort === "custom" && !workflowListFilters.query.trim();
+}
+
+function reorderCurrentServerWorkflows(sourceWorkflowId, targetWorkflowId, placeAfter = false) {
+  const state = getState();
+  const currentServerId = getCurrentServerId();
+  const serverWorkflows = state.workflows.filter((workflow) => workflow.server_id === currentServerId);
+  const sourceIndex = serverWorkflows.findIndex((workflow) => workflow.id === sourceWorkflowId);
+  const targetIndex = serverWorkflows.findIndex((workflow) => workflow.id === targetWorkflowId);
+
+  if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) {
+    return null;
+  }
+
+  const reorderedServerWorkflows = [...serverWorkflows];
+  const [movedWorkflow] = reorderedServerWorkflows.splice(sourceIndex, 1);
+  const adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+  const insertIndex = placeAfter ? adjustedTargetIndex + 1 : adjustedTargetIndex;
+  reorderedServerWorkflows.splice(insertIndex, 0, movedWorkflow);
+
+  return [
+    ...state.workflows.filter((workflow) => workflow.server_id !== currentServerId),
+    ...reorderedServerWorkflows,
+  ];
+}
+
+async function persistWorkflowOrder(serverId, workflowIds) {
+  await fetchJSON(`/api/servers/${encodeURIComponent(serverId)}/workflows/reorder`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ workflow_ids: workflowIds }),
+  });
 }
 
 function getEditorStep() {
@@ -625,7 +720,7 @@ async function loadWorkflows() {
     refreshWorkflowPanel();
   } catch {
     setWorkflows([]);
-    renderWorkflowSummary(elements.workflowSummary);
+    renderWorkflowSummary(elements.workflowSummary, []);
     elements.workflowList.html(`<div class="empty-state">${t("err_load_workflows")}</div>`);
   }
 }
@@ -1010,6 +1105,16 @@ function bindWorkflowEvents() {
     enterEditor({ workflowData: null, schemaParams: {} });
   });
 
+  elements.workflowSearch.on("input", function () {
+    workflowListFilters.query = $(this).val().trim();
+    refreshWorkflowPanel();
+  });
+
+  elements.workflowSort.on("change", function () {
+    workflowListFilters.sort = $(this).val();
+    refreshWorkflowPanel();
+  });
+
   elements.editorBackBtn.on("click", async () => {
     await exitEditor();
   });
@@ -1036,6 +1141,87 @@ function bindWorkflowEvents() {
     const workflowId = $item.data("workflowId");
     const serverId = $item.data("serverId");
     toggleWorkflowStatus(serverId, workflowId, $checkbox);
+  });
+
+  elements.workflowList.on("dragstart", ".workflow-drag-handle[draggable='true']", function (event) {
+    if (!canDragReorderWorkflows()) {
+      event.preventDefault();
+      return;
+    }
+
+    const $item = $(this).closest(".workflow-item");
+    draggedWorkflowId = String($item.data("workflowId"));
+    $item.addClass("is-dragging");
+    event.originalEvent?.dataTransfer?.setData("text/plain", draggedWorkflowId);
+    if (event.originalEvent?.dataTransfer) {
+      event.originalEvent.dataTransfer.effectAllowed = "move";
+    }
+  });
+
+  elements.workflowList.on("dragover", ".workflow-item", function (event) {
+    if (!canDragReorderWorkflows() || !draggedWorkflowId) {
+      return;
+    }
+
+    event.preventDefault();
+    const $item = $(this);
+    $(".workflow-item").removeClass("is-drop-target");
+    $item.addClass("is-drop-target");
+  });
+
+  elements.workflowList.on("dragleave", ".workflow-item", function () {
+    $(this).removeClass("is-drop-target");
+  });
+
+  elements.workflowList.on("dragend", ".workflow-drag-handle[draggable='true']", function () {
+    draggedWorkflowId = null;
+    $(".workflow-item").removeClass("is-dragging is-drop-target");
+  });
+
+  elements.workflowList.on("drop", ".workflow-item", async function (event) {
+    if (!canDragReorderWorkflows() || !draggedWorkflowId) {
+      return;
+    }
+
+    event.preventDefault();
+    const $target = $(this);
+    const targetWorkflowId = String($target.data("workflowId"));
+
+    if (!targetWorkflowId || targetWorkflowId === draggedWorkflowId) {
+      $(".workflow-item").removeClass("is-dragging is-drop-target");
+      draggedWorkflowId = null;
+      return;
+    }
+
+    const rect = this.getBoundingClientRect();
+    const pointerY = event.originalEvent?.clientY ?? rect.top;
+    const placeAfter = pointerY > rect.top + rect.height / 2;
+    const reorderedWorkflows = reorderCurrentServerWorkflows(draggedWorkflowId, targetWorkflowId, placeAfter);
+
+    $(".workflow-item").removeClass("is-dragging is-drop-target");
+
+    if (!reorderedWorkflows) {
+      draggedWorkflowId = null;
+      return;
+    }
+
+    const currentServerId = getCurrentServerId();
+    const orderedIds = reorderedWorkflows
+      .filter((workflow) => workflow.server_id === currentServerId)
+      .map((workflow) => workflow.id);
+
+    const previousWorkflows = [...getState().workflows];
+    setWorkflows(reorderedWorkflows);
+    refreshWorkflowPanel();
+    draggedWorkflowId = null;
+
+    try {
+      await persistWorkflowOrder(currentServerId, orderedIds);
+    } catch {
+      setWorkflows(previousWorkflows);
+      refreshWorkflowPanel();
+      showToast(t("err_reorder_workflows"), "error");
+    }
   });
 }
 
@@ -1272,6 +1458,8 @@ async function init() {
   });
 
   elements = getElements();
+  elements.workflowSearch.val(workflowListFilters.query);
+  elements.workflowSort.val(workflowListFilters.sort);
   syncLanguage();
   bindEvents();
 
