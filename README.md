@@ -66,22 +66,26 @@ ComfyUI_Skills_OpenClaw/
 
 ---
 
-## Requirements
+## Installation
+
+### 1) Requirements
 
 - Python 3.10+
 - A running ComfyUI server (default: `http://127.0.0.1:8188`)
 
-Install dependencies:
+### 2) Clone and install dependencies
 
 ```bash
+git clone <your-repo-url> comfyui-skill-openclaw
+cd comfyui-skill-openclaw
 pip install -r requirements.txt
 ```
 
----
+### 3) Create local config
 
-## Configuration
+Create `config.json` from `config.example.json`, then edit the ComfyUI server URL if needed.
 
-`config.json` (local):
+`config.json` example:
 
 ```json
 {
@@ -98,26 +102,42 @@ pip install -r requirements.txt
 }
 ```
 
-> Tip: Keep `config.json` local-only. Use `config.example.json` as a template.
+> Keep `config.json` local-only. Do not commit it.
 
----
+### 4) Start the local UI
 
-## Quick Start
+- macOS/Linux:
+  ```bash
+  ./ui/run_ui.sh
+  ```
+  or double-click `ui/run_ui.command`
+- Windows:
+  ```bat
+  ui\run_ui.bat
+  ```
 
-### 1) Check available workflows
+Then open:
+
+- `http://localhost:8189`
+
+### 5) Add your first server and workflow
+
+In the UI:
+
+1. Add a ComfyUI server.
+2. Upload a workflow exported from ComfyUI via **Save (API Format)**.
+3. Expose the parameters you want the agent to use.
+4. Save the workflow mapping.
+
+### 6) Verify the installation
+
+Check the registry:
 
 ```bash
 python scripts/registry.py list
 ```
 
-Current demo workflow: `test`
-
-Exposed params:
-- `prompt` (required)
-- `size` (optional)
-- `seed` (optional)
-
-### 2) Run one generation job
+Run one test job:
 
 ```bash
 python scripts/comfyui_client.py \
@@ -125,7 +145,7 @@ python scripts/comfyui_client.py \
   --args '{"prompt":"A premium product photo on aged driftwood, warm cinematic light","size":"3:4,1728x2304","seed":20260307}'
 ```
 
-If successful, output JSON includes local image path(s), e.g.:
+If successful, output JSON includes local image path(s), for example:
 
 ```json
 {
@@ -134,6 +154,27 @@ If successful, output JSON includes local image path(s), e.g.:
   "images": ["./outputs/<prompt_id>_...png"]
 }
 ```
+
+---
+
+## Install As An OpenClaw Skill
+
+Put this repository under your OpenClaw workspace:
+
+- `<workspace>/skills/comfyui-skill-openclaw/`
+
+OpenClaw will read `SKILL.md` and call:
+
+- `scripts/registry.py list --agent`
+- `scripts/comfyui_client.py --workflow ... --args '...json...'`
+
+Minimal checklist:
+
+1. The folder name is `comfyui-skill-openclaw`.
+2. `SKILL.md` exists at the project root.
+3. Python dependencies are installed.
+4. `config.json` points to a reachable ComfyUI server.
+5. At least one workflow and schema are configured.
 
 ---
 
@@ -175,18 +216,6 @@ python scripts/server_manager.py add --id cloud --name "Cloud Node" --url http:/
 python scripts/server_manager.py disable cloud
 ```
 *You can also manage servers fully via the Web UI.*
-
----
-
-## OpenClaw Integration Notes
-
-To make OpenClaw pick up this skill in a workspace session, keep it under:
-
-- `<workspace>/skills/comfyui-skill-openclaw/`
-
-OpenClaw reads `SKILL.md` and then uses:
-- `scripts/registry.py list --agent`
-- `scripts/comfyui_client.py --workflow ... --args '...json...'`
 
 ---
 

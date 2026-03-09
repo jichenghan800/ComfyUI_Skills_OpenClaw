@@ -1,9 +1,9 @@
-# ComfyUI Skills for OpenClaw（中文说明）
+# ComfyUI Skills for OpenClaw
 
 ![ComfyUI Skills Banner](./asset/banner-ui-20250309.jpg)
-这是一个面向 OpenClaw / 其他 Agent 的 ComfyUI Skill 集成层：支持调用你在 ComfyUI 中自行编排并导出（API Format）的 Workflow，将其封装为可被 OpenClaw/Agent 通过自然语言触发的 Skills。
+这是一个面向 OpenClaw / Agent 的 ComfyUI Skill 集成层：支持调用你在 ComfyUI 中自行编排并导出（API格式）的 Workflow，将其封装为可被 OpenClaw/Agent 通过自然语言触发的 Skills。
 
-它会把自然语言请求转成结构化的技能参数，映射到 ComfyUI 工作流输入后提交执行，等待任务完成并将生成图片下载到本地。
+它会把自然语言请求转成结构化的 Skill 参数，映射到 ComfyUI 工作流输入后提交执行，等待任务完成并将生成图片下载到本地。
 
 ---
 
@@ -53,7 +53,7 @@ ComfyUI_Skills_OpenClaw/
 
 ## 这个 Skill 能做什么
 
-- **[AI Native 特性] 零干预工作流自动配置**：直接将导出的工作流 JSON 交给 Agent，它可以自主分析节点、提取参数并直接生成配置 Schema 供后续调度！
+- **零干预工作流自动配置**：直接将导出的工作流 JSON 交给 Agent，它可以自主分析节点、提取参数并直接生成配置 Schema 供后续调度！
 - 发现可用工作流和参数要求（`registry.py`）
 - 按 schema 把参数映射到 ComfyUI 节点输入（`node_id/field`）
 - 通过 ComfyUI HTTP API 提交任务（`/prompt`）
@@ -62,22 +62,26 @@ ComfyUI_Skills_OpenClaw/
 
 ---
 
-## 环境要求
+## 安装
+
+### 1）环境要求
 
 - Python 3.10+
 - 正在运行的 ComfyUI 服务（默认：`http://127.0.0.1:8188`）
 
-安装依赖：
+### 2）克隆项目并安装依赖
 
 ```bash
+git clone <你的仓库地址> comfyui-skill-openclaw
+cd comfyui-skill-openclaw
 pip install -r requirements.txt
 ```
 
----
+### 3）创建本地配置
 
-## 配置
+先根据 `config.example.json` 创建 `config.json`，再按需修改 ComfyUI 地址。
 
-本地 `config.json` 示例：
+`config.json` 示例：
 
 ```json
 {
@@ -94,26 +98,42 @@ pip install -r requirements.txt
 }
 ```
 
-> 建议：`config.json` 只保留在本地，版本库里保留 `config.example.json` 即可。
+> `config.json` 只保留在本地，不要提交到仓库。
 
----
+### 4）启动本地 UI
 
-## 快速开始
+- macOS/Linux：
+  ```bash
+  ./ui/run_ui.sh
+  ```
+  或双击 `ui/run_ui.command`
+- Windows：
+  ```bat
+  ui\run_ui.bat
+  ```
 
-### 1）查看可用工作流
+打开：
+
+- `http://localhost:8189`
+
+### 5）添加第一个服务器和工作流
+
+在 UI 里完成这几步：
+
+1. 添加一个 ComfyUI 服务器。
+2. 上传从 ComfyUI 导出的工作流 JSON，格式必须是 **Save (API Format)**。
+3. 选择需要暴露给 Agent 的参数。
+4. 保存工作流映射。
+
+### 6）验证是否安装成功
+
+查看工作流列表：
 
 ```bash
 python scripts/registry.py list
 ```
 
-当前示例工作流：`test`
-
-对外参数：
-- `prompt`（必填）
-- `size`（可选）
-- `seed`（可选）
-
-### 2）执行一次生图
+执行一次测试生图：
 
 ```bash
 python scripts/comfyui_client.py \
@@ -133,7 +153,28 @@ python scripts/comfyui_client.py \
 
 ---
 
-## 本地管理面板（UI）
+## 作为 OpenClaw Skill 安装
+
+把这个项目放到 OpenClaw 工作区的下面：
+
+- `<workspace>/skills/comfyui-skill-openclaw/`
+
+OpenClaw 会读取 `SKILL.md`，并调用：
+
+- `scripts/registry.py list --agent`
+- `scripts/comfyui_client.py --workflow ... --args '...json...'`
+
+最小检查清单：
+
+1. 目录名是 `comfyui-skill-openclaw`
+2. 根目录存在 `SKILL.md`
+3. Python 依赖已经安装
+4. `config.json` 指向可访问的 ComfyUI 服务
+5. 至少已经配置了一个工作流和对应参数映射
+
+---
+
+## 本地 UI 管理面板
 
 启动方式：
 
@@ -155,13 +196,13 @@ python scripts/comfyui_client.py \
 
 ---
 
-## 多服务器管理 (Multi-Server)
+## 多服务器管理
 
-你现在可以配置多个不同的 ComfyUI 服务器，方便 Agent 将生图任务分发到不同算力节点（例如本机 GPU、云端 A100 实例等）。
+你现在可以配置多个不同的 ComfyUI 服务器，方便 Agent 将生图任务分发到不同算力节点（例如本机 GPU、云端实例等）。
 
 ### 核心概念
 - **双层控制开关**：`服务器` 和 `独立工作流` 均有各自的开启/关闭状态。Agent 只能发现**两者均开启**的工作流。
-- **命名空间组合**：Agent 识别工作流的唯一标识变更为 `<server_id>/<workflow_id>` 的复合格式（例如：`local/test` 与 `cloud-a100/test`）。
+- **命名空间组合**：Agent 识别工作流的唯一标识变更为 `<server_id>/<workflow_id>` 的复合格式（例如：`local/test` 与 `cloud/test`）。
 
 ### 命令行工具配置
 在无 GUI 的 Linux 机器部署时，可使用内置的 CLI 工具（`scripts/server_manager.py`）进行管理：
@@ -171,18 +212,6 @@ python scripts/server_manager.py add --id cloud --name "Cloud Node" --url http:/
 python scripts/server_manager.py disable cloud
 ```
 *所有服务器配置依然可以通过前端 Web UI 界面来进行图形化无缝管理。*
-
----
-
-## OpenClaw 集成说明
-
-要在 OpenClaw 工作区会话中自动识别此 Skill，请放到：
-
-- `<workspace>/skills/comfyui-skill-openclaw/`
-
-OpenClaw 会读取 `SKILL.md`，并调用：
-- `scripts/registry.py list --agent`
-- `scripts/comfyui_client.py --workflow ... --args '...json...'`
 
 ---
 
