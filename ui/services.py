@@ -187,7 +187,7 @@ class UIStorageService:
             "description": str(schema_data.get("description") or ""),
             "enabled": bool(schema_data.get("enabled", True)),
             "workflow_data": workflow_data,
-            "schema_params": schema_data.get("parameters", {}),
+            "schema_params": schema_data.get("ui_parameters") or schema_data.get("parameters", {}),
         }
 
     def save_workflow(
@@ -199,6 +199,7 @@ class UIStorageService:
         description: str,
         workflow_data: dict[str, Any],
         schema_params: dict[str, Any],
+        ui_schema_params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         source_workflow_id = original_workflow_id or workflow_id
         workflow_path = self._workflow_path(server_id, workflow_id)
@@ -222,6 +223,7 @@ class UIStorageService:
             "description": description,
             "enabled": enabled,
             "parameters": schema_params,
+            "ui_parameters": ui_schema_params or {},
         }
         _write_json(schema_path, schema)
 

@@ -112,6 +112,7 @@ class SchemaModel(BaseModel):
     description: str = ""
     workflow_data: dict[str, Any]
     schema_params: dict[str, dict[str, Any]]
+    ui_schema_params: dict[str, dict[str, Any]] | None = None
 
     @field_validator("workflow_id", "original_workflow_id")
     @classmethod
@@ -133,7 +134,3 @@ class SchemaModel(BaseModel):
 
 class ToggleModel(BaseModel):
     enabled: bool
-
-
-class DeleteServerModel(BaseModel):
-    delete_data: bool = False

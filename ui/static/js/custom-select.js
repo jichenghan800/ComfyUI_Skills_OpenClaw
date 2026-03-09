@@ -235,6 +235,10 @@ function ensureSelectRoot(select) {
 
   root.classList.toggle("is-lang-select", select.classList.contains("lang-select"));
   root.classList.toggle("is-server-select", select.classList.contains("server-selector"));
+  root.classList.toggle(
+    "is-mapping-sort-select",
+    select.id === "mapping-node-sort" || select.id === "mapping-param-sort",
+  );
 
   return root;
 }

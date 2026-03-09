@@ -55,8 +55,6 @@ export function getElements() {
     mappingExposeRecommendedButton: $("#mapping-expose-recommended"),
     mappingExposeVisibleButton: $("#mapping-expose-visible"),
     mappingUnexposeVisibleButton: $("#mapping-unexpose-visible"),
-    mappingCollapseConfigsButton: $("#mapping-collapse-configs"),
-    mappingExpandConfigsButton: $("#mapping-expand-configs"),
     mappingCollapseAllButton: $("#mapping-collapse-all"),
     mappingExpandAllButton: $("#mapping-expand-all"),
     mappingResetFiltersButton: $("#mapping-reset-filters"),

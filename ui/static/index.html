@@ -172,44 +172,44 @@
     <section id="mapping-section" class="card hidden" aria-labelledby="mapping-title">
       <h2 id="mapping-title" class="card-title" data-i18n="parsed_input">Parsed Input Node List</h2>
       <div class="mapping-toolbar">
-        <input id="mapping-search" type="text" class="input-field" data-i18n-placeholder="mapping_search_placeholder"
-          placeholder="Search by node, field, alias or description">
-        <select id="mapping-node-sort" class="server-selector" aria-label="Node sort order">
-          <option value="node_id_asc" data-i18n="mapping_sort_node_id_asc">Node ID (asc)</option>
-          <option value="node_id_desc" data-i18n="mapping_sort_node_id_desc">Node ID (desc)</option>
-          <option value="class_asc" data-i18n="mapping_sort_class_asc">Node type (A-Z)</option>
-        </select>
-        <select id="mapping-param-sort" class="server-selector" aria-label="Parameter sort order">
-          <option value="default" data-i18n="mapping_sort_param_default">Parameter default</option>
-          <option value="field_asc" data-i18n="mapping_sort_param_name">Parameter name (A-Z)</option>
-          <option value="type_asc" data-i18n="mapping_sort_param_type">Type (A-Z)</option>
-          <option value="exposed_first" data-i18n="mapping_sort_param_exposed">Exposed first</option>
-        </select>
-        <label class="checkbox-inline mapping-exposed-only-label" for="mapping-exposed-only">
-          <input id="mapping-exposed-only" type="checkbox">
-          <span data-i18n="mapping_exposed_only">Only show exposed parameters</span>
-        </label>
-        <label class="checkbox-inline mapping-exposed-only-label" for="mapping-required-only">
-          <input id="mapping-required-only" type="checkbox">
-          <span data-i18n="mapping_required_only">Only show required parameters</span>
-        </label>
-        <div class="mapping-toolbar-actions">
-          <button id="mapping-expose-recommended" type="button" class="btn btn-secondary"
-            data-i18n="mapping_apply_recommended">Auto expose recommended</button>
-          <button id="mapping-expose-visible" type="button" class="btn btn-secondary"
-            data-i18n="mapping_expose_visible">Expose visible</button>
-          <button id="mapping-unexpose-visible" type="button" class="btn btn-secondary"
-            data-i18n="mapping_unexpose_visible">Unexpose visible</button>
-          <button id="mapping-collapse-configs" type="button" class="btn btn-secondary"
-            data-i18n="mapping_collapse_configs">Collapse parameter configs</button>
-          <button id="mapping-expand-configs" type="button" class="btn btn-secondary"
-            data-i18n="mapping_expand_configs">Expand parameter configs</button>
-          <button id="mapping-collapse-all" type="button" class="btn btn-secondary"
-            data-i18n="mapping_collapse_all">Collapse all nodes</button>
-          <button id="mapping-expand-all" type="button" class="btn btn-secondary"
-            data-i18n="mapping_expand_all">Expand all nodes</button>
-          <button id="mapping-reset-filters" type="button" class="btn btn-secondary"
-            data-i18n="mapping_reset_filters">Reset filters</button>
+        <div class="mapping-toolbar-top">
+          <input id="mapping-search" type="text" class="input-field" data-i18n-placeholder="mapping_search_placeholder"
+            placeholder="Search by node, field, alias or description">
+          <select id="mapping-node-sort" class="server-selector" aria-label="Node sort order">
+            <option value="node_id_asc" data-i18n="mapping_sort_node_id_asc">Node ID (asc)</option>
+            <option value="node_id_desc" data-i18n="mapping_sort_node_id_desc">Node ID (desc)</option>
+            <option value="class_asc" data-i18n="mapping_sort_class_asc">Node type (A-Z)</option>
+          </select>
+          <select id="mapping-param-sort" class="server-selector" aria-label="Parameter sort order">
+            <option value="default" data-i18n="mapping_sort_param_default">Parameter default</option>
+            <option value="field_asc" data-i18n="mapping_sort_param_name">Parameter name (A-Z)</option>
+            <option value="type_asc" data-i18n="mapping_sort_param_type">Type (A-Z)</option>
+            <option value="exposed_first" data-i18n="mapping_sort_param_exposed">Exposed first</option>
+          </select>
+        </div>
+        <div class="mapping-toolbar-bottom">
+          <label class="checkbox-inline mapping-exposed-only-label" for="mapping-exposed-only">
+            <input id="mapping-exposed-only" type="checkbox">
+            <span data-i18n="mapping_exposed_only">Only show exposed parameters</span>
+          </label>
+          <label class="checkbox-inline mapping-exposed-only-label" for="mapping-required-only">
+            <input id="mapping-required-only" type="checkbox">
+            <span data-i18n="mapping_required_only">Only show required parameters</span>
+          </label>
+          <div class="mapping-toolbar-actions">
+            <button id="mapping-expose-recommended" type="button" class="btn btn-secondary"
+              data-i18n="mapping_apply_recommended">Auto expose recommended</button>
+            <button id="mapping-expose-visible" type="button" class="btn btn-secondary"
+              data-i18n="mapping_expose_visible">Expose visible</button>
+            <button id="mapping-unexpose-visible" type="button" class="btn btn-secondary"
+              data-i18n="mapping_unexpose_visible">Unexpose visible</button>
+            <button id="mapping-collapse-all" type="button" class="btn btn-secondary"
+              data-i18n="mapping_collapse_all">Collapse all nodes</button>
+            <button id="mapping-expand-all" type="button" class="btn btn-secondary"
+              data-i18n="mapping_expand_all">Expand all nodes</button>
+            <button id="mapping-reset-filters" type="button" class="btn btn-secondary"
+              data-i18n="mapping_reset_filters">Reset filters</button>
+          </div>
         </div>
       </div>
       <p id="mapping-summary" class="section-meta"></p>

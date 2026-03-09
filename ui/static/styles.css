@@ -1013,21 +1013,33 @@ button:disabled,
 }
 
 .mapping-toolbar {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.mapping-toolbar-top,
+.mapping-toolbar-bottom {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
-  margin-bottom: 10px;
 }
 
-.mapping-toolbar > #mapping-search {
-  flex: 1 1 280px;
+.mapping-toolbar-top > #mapping-search {
+  flex: 1 1 360px;
+  min-width: 260px;
 }
 
-.mapping-toolbar > #mapping-node-sort,
-.mapping-toolbar > #mapping-param-sort {
-  min-width: 180px;
-  width: auto;
+.mapping-toolbar-top .custom-select.is-mapping-sort-select {
+  width: 152px;
+  flex: 0 0 152px;
+}
+
+.mapping-toolbar-top .custom-select.is-mapping-sort-select .custom-select-trigger {
+  min-height: 42px;
+  padding: 8px 34px 8px 12px;
+  font-size: 0.9rem;
 }
 
 .mapping-toolbar-actions {
@@ -1035,6 +1047,7 @@ button:disabled,
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  margin-left: auto;
 }
 
 .mapping-exposed-only-label {
@@ -1686,9 +1699,10 @@ button:disabled,
   }
 
   .mapping-toolbar-actions {
-    justify-content: stretch;
     flex-direction: column;
     width: 100%;
+    margin-left: 0;
+    justify-content: stretch;
   }
 
   .node-header-right {
@@ -1696,10 +1710,19 @@ button:disabled,
     width: 100%;
   }
 
-  .mapping-toolbar > #mapping-node-sort,
-  .mapping-toolbar > #mapping-param-sort {
+  .mapping-toolbar-top,
+  .mapping-toolbar-bottom {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mapping-toolbar-top > #mapping-search {
     min-width: 0;
+  }
+
+  .mapping-toolbar-top .custom-select.is-mapping-sort-select {
     width: 100%;
+    flex-basis: auto;
   }
 
   .form-row,

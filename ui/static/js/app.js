@@ -477,8 +477,32 @@ function enterEditor({ workflowData, schemaParams, workflowId = "", description 
 
 function hydrateSchemaParams(workflowData, savedSchemaParams) {
   const extractedParams = extractSchemaParams(workflowData);
+  const savedEntries = Object.entries(savedSchemaParams || {});
 
-  Object.entries(savedSchemaParams || {}).forEach(([name, savedParam]) => {
+  const isUiStateShape = savedEntries.some(([, savedParam]) => {
+    return savedParam && typeof savedParam === "object" && "exposed" in savedParam;
+  });
+
+  if (isUiStateShape) {
+    savedEntries.forEach(([key, savedParam]) => {
+      if (!extractedParams[key]) {
+        return;
+      }
+
+      extractedParams[key] = {
+        ...extractedParams[key],
+        exposed: Boolean(savedParam.exposed),
+        name: savedParam.name || extractedParams[key].name,
+        type: savedParam.type || extractedParams[key].type,
+        required: Boolean(savedParam.required),
+        description: savedParam.description || "",
+      };
+    });
+
+    return extractedParams;
+  }
+
+  savedEntries.forEach(([name, savedParam]) => {
     const key = `${savedParam.node_id}_${savedParam.field}`;
     if (!extractedParams[key]) {
       return;
@@ -685,6 +709,7 @@ async function requestSaveWorkflow({
   description,
   workflowData,
   schemaParams,
+  uiSchemaParams,
 }) {
   const savePayload = {
     workflow_id: workflowId,
@@ -693,6 +718,7 @@ async function requestSaveWorkflow({
     description,
     workflow_data: workflowData,
     schema_params: schemaParams,
+    ui_schema_params: uiSchemaParams,
     overwrite_existing: false,
   };
 
@@ -777,11 +803,13 @@ async function saveWorkflow() {
       // The backend will fetch the existing one if we pass null for workflow_data.
       workflowData: currentUploadData || null,
       schemaParams: finalSchema,
+      uiSchemaParams: schemaParams,
     });
     showToast(t("ok_save_wf"), "success");
+    setEditingWorkflowId(workflowId);
     markEditorDirty(false);
     await loadWorkflows();
-    await exitEditor();
+    refreshEditorPanel();
   } catch (error) {
     if (error?.cancelled) {
       return;
@@ -947,11 +975,8 @@ function bindServerEvents() {
     const $btn = $(this);
     $btn.prop("disabled", true);
     try {
-      await fetchJSON(`/api/servers/${encodeURIComponent(currentServer.id)}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ delete_data: result.checked }),
-      });
+      const deleteUrl = `/api/servers/${encodeURIComponent(currentServer.id)}?delete_data=${result.checked ? "true" : "false"}`;
+      await fetchJSON(deleteUrl, { method: "DELETE" });
       await loadServers();
       refreshWorkflowPanel();
       showToast(t(result.checked ? "ok_del_server_with_data" : "ok_del_server_keep_data"), "success");
