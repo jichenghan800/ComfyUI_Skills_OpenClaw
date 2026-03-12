@@ -16,8 +16,10 @@ from shared.config import (
     DEFAULT_COMFYUI_SERVER_URL,
     DEFAULT_OUTPUT_DIR,
     default_config,
-    get_server_schemas_dir,
-    get_server_workflows_dir,
+    get_server_data_dir,
+    get_server_schema_path,
+    get_server_workflow_path,
+    list_server_workflow_dirs,
 )
 from shared.json_utils import load_json
 from shared.runtime_config import get_runtime_config
@@ -73,10 +75,14 @@ def _atomic_write_json(path: Path, data: Any) -> None:
 
 
 def _list_workflow_file_ids(server_id: str) -> tuple[set[str], set[str]]:
-    workflow_dir = get_server_workflows_dir(server_id)
-    schema_dir = get_server_schemas_dir(server_id)
-    workflow_ids = {path.stem for path in workflow_dir.glob("*.json")} if workflow_dir.exists() else set()
-    schema_ids = {path.stem for path in schema_dir.glob("*.json")} if schema_dir.exists() else set()
+    workflow_ids: set[str] = set()
+    schema_ids: set[str] = set()
+    for workflow_dir in list_server_workflow_dirs(server_id):
+        workflow_id = workflow_dir.name
+        if get_server_workflow_path(server_id, workflow_id).exists():
+            workflow_ids.add(workflow_id)
+        if get_server_schema_path(server_id, workflow_id).exists():
+            schema_ids.add(workflow_id)
     return workflow_ids, schema_ids
 
 
@@ -196,13 +202,37 @@ class BundleValidationError(ValueError):
         self.result = result
 
 
-def build_export_bundle(portable_only: bool = False) -> tuple[dict[str, Any], list[ValidationIssue]]:
+def _normalize_export_selection(selection: dict[str, Any] | None) -> dict[str, set[str]]:
+    if not isinstance(selection, dict):
+        return {}
+
+    selected_servers = selection.get("servers", [])
+    if not isinstance(selected_servers, list):
+        return {}
+
+    normalized: dict[str, set[str]] = {}
+    for server in selected_servers:
+        if not isinstance(server, dict):
+            continue
+        server_id = _normalize_identifier(server.get("server_id"))
+        if not _is_valid_identifier(server_id):
+            continue
+        workflow_ids = server.get("workflow_ids", [])
+        if not isinstance(workflow_ids, list):
+            workflow_ids = []
+        normalized[server_id] = {
+            workflow_id
+            for workflow_id in (_normalize_identifier(item) for item in workflow_ids)
+            if _is_valid_identifier(workflow_id)
+        }
+    return normalized
+
+
+def _collect_export_inventory() -> tuple[list[dict[str, Any]], list[ValidationIssue], dict[str, Any]]:
     config = get_runtime_config()
     servers = config.get("servers", [])
-    portable_servers: list[dict[str, Any]] = []
-    portable_workflows: list[dict[str, Any]] = []
     warnings: list[ValidationIssue] = []
-    runtime_mapping: dict[str, dict[str, str]] = {}
+    inventory: list[dict[str, Any]] = []
 
     for server in servers:
         if not isinstance(server, dict):
@@ -221,7 +251,7 @@ def build_export_bundle(portable_only: bool = False) -> tuple[dict[str, Any], li
             ))
             continue
 
-        portable_servers.append({
+        server_entry = {
             "id": server_id,
             "name": _normalize_string(server.get("name"), default=server_id) or server_id,
             "enabled": bool(server.get("enabled", True)),
@@ -233,10 +263,11 @@ def build_export_bundle(portable_only: bool = False) -> tuple[dict[str, Any], li
                 )
                 if _is_valid_identifier(workflow_id)
             ],
-        })
-        runtime_mapping[server_id] = {
-            "url": _normalize_string(server.get("url"), default=DEFAULT_COMFYUI_SERVER_URL) or DEFAULT_COMFYUI_SERVER_URL,
-            "output_dir": _normalize_string(server.get("output_dir"), default=DEFAULT_OUTPUT_DIR) or DEFAULT_OUTPUT_DIR,
+            "runtime": {
+                "url": _normalize_string(server.get("url"), default=DEFAULT_COMFYUI_SERVER_URL) or DEFAULT_COMFYUI_SERVER_URL,
+                "output_dir": _normalize_string(server.get("output_dir"), default=DEFAULT_OUTPUT_DIR) or DEFAULT_OUTPUT_DIR,
+            },
+            "workflows": [],
         }
 
         workflow_ids, schema_ids = _list_workflow_file_ids(server_id)
@@ -254,8 +285,8 @@ def build_export_bundle(portable_only: bool = False) -> tuple[dict[str, Any], li
             ))
 
         for workflow_id in sorted(workflow_ids & schema_ids):
-            workflow_path = get_server_workflows_dir(server_id) / f"{workflow_id}.json"
-            schema_path = get_server_schemas_dir(server_id) / f"{workflow_id}.json"
+            workflow_path = get_server_workflow_path(server_id, workflow_id)
+            schema_path = get_server_schema_path(server_id, workflow_id)
             workflow_data = _safe_load_json(workflow_path)
             schema_data = _safe_load_json(schema_path)
 
@@ -278,11 +309,106 @@ def build_export_bundle(portable_only: bool = False) -> tuple[dict[str, Any], li
 
             schema_payload = copy.deepcopy(schema_data)
             schema_payload["workflow_id"] = actual_workflow_id
-            portable_workflows.append({
-                "server_id": server_id,
+            server_entry["workflows"].append({
                 "workflow_id": actual_workflow_id,
                 "workflow_data": workflow_data,
                 "schema_data": schema_payload,
+                "enabled": bool(schema_payload.get("enabled", True)),
+                "description": _normalize_string(schema_payload.get("description")),
+            })
+
+        inventory.append(server_entry)
+
+    return inventory, warnings, config
+
+
+def summarize_export_bundle(bundle: dict[str, Any], warnings: list[ValidationIssue]) -> dict[str, Any]:
+    portable = bundle.get("portable", {}) if isinstance(bundle, dict) else {}
+    servers = portable.get("servers", []) if isinstance(portable, dict) else []
+    workflows = portable.get("workflows", []) if isinstance(portable, dict) else []
+
+    workflow_map: dict[str, list[dict[str, Any]]] = {}
+    for workflow in workflows if isinstance(workflows, list) else []:
+        if not isinstance(workflow, dict):
+            continue
+        server_id = _normalize_identifier(workflow.get("server_id"))
+        workflow_map.setdefault(server_id, []).append({
+            "workflow_id": _normalize_identifier(workflow.get("workflow_id")),
+            "enabled": bool((workflow.get("schema_data") or {}).get("enabled", True)) if isinstance(workflow.get("schema_data"), dict) else True,
+            "description": _normalize_string((workflow.get("schema_data") or {}).get("description", "")) if isinstance(workflow.get("schema_data"), dict) else "",
+            "selected": True,
+        })
+
+    server_items = []
+    for server in servers if isinstance(servers, list) else []:
+        if not isinstance(server, dict):
+            continue
+        server_id = _normalize_identifier(server.get("id"))
+        workflows_for_server = workflow_map.get(server_id, [])
+        server_items.append({
+            "server_id": server_id,
+            "name": _normalize_string(server.get("name")),
+            "enabled": bool(server.get("enabled", True)),
+            "selected": True,
+            "workflow_count": len(workflows_for_server),
+            "workflows": sorted(workflows_for_server, key=lambda item: item["workflow_id"].lower()),
+        })
+
+    return {
+        "portable_only": bool(bundle.get("meta", {}).get("portable_only", False)) if isinstance(bundle, dict) else False,
+        "summary": {
+            "servers": len(server_items),
+            "workflows": sum(item["workflow_count"] for item in server_items),
+            "warnings": len(warnings),
+        },
+        "servers": server_items,
+        "warnings": [issue.to_dict() for issue in warnings],
+    }
+
+
+def build_export_bundle(
+    portable_only: bool = False,
+    selection: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], list[ValidationIssue]]:
+    inventory, warnings, config = _collect_export_inventory()
+    normalized_selection = _normalize_export_selection(selection)
+    use_selection = bool(normalized_selection)
+    portable_servers: list[dict[str, Any]] = []
+    portable_workflows: list[dict[str, Any]] = []
+    runtime_mapping: dict[str, dict[str, str]] = {}
+
+    for server in inventory:
+        server_id = server["id"]
+        selected_workflow_ids = normalized_selection.get(server_id) if use_selection else None
+        exported_workflows = []
+        for workflow in server["workflows"]:
+            workflow_id = workflow["workflow_id"]
+            if use_selection and (selected_workflow_ids is None or workflow_id not in selected_workflow_ids):
+                continue
+            exported_workflows.append(workflow)
+
+        if not exported_workflows:
+            continue
+
+        exported_workflow_id_set = {workflow["workflow_id"] for workflow in exported_workflows}
+        portable_servers.append({
+            "id": server_id,
+            "name": server["name"],
+            "enabled": server["enabled"],
+            "workflow_order": [
+                workflow_id
+                for workflow_id in server["workflow_order"]
+                if workflow_id in exported_workflow_id_set
+            ],
+        })
+        runtime_mapping[server_id] = copy.deepcopy(server["runtime"])
+
+        for workflow in exported_workflows:
+            portable_workflows.append({
+                "server_id": server_id,
+                "workflow_id": workflow["workflow_id"],
+                "workflow_data": copy.deepcopy(workflow["workflow_data"]),
+                "schema_data": copy.deepcopy(workflow["schema_data"]),
             })
 
     bundle: dict[str, Any] = {
@@ -293,6 +419,7 @@ def build_export_bundle(portable_only: bool = False) -> tuple[dict[str, Any], li
             "generator": "ComfyUI_Skills_OpenClaw",
             "generator_version": "local",
             "portable_only": portable_only,
+            "partial_export": use_selection,
         },
         "portable": {
             "servers": portable_servers,
@@ -301,8 +428,9 @@ def build_export_bundle(portable_only: bool = False) -> tuple[dict[str, Any], li
     }
 
     if not portable_only:
+        default_server = _normalize_identifier(config.get("default_server"))
         bundle["environment"] = {
-            "default_server": _normalize_identifier(config.get("default_server")),
+            "default_server": default_server if default_server in runtime_mapping else "",
             "server_runtime": runtime_mapping,
         }
 
@@ -502,8 +630,8 @@ def preview_bundle_import(
     for workflow in portable.get("workflows", []):
         server_id = _normalize_identifier(workflow.get("server_id"))
         workflow_id = _normalize_identifier(workflow.get("workflow_id"))
-        workflow_path = get_server_workflows_dir(server_id) / f"{workflow_id}.json"
-        schema_path = get_server_schemas_dir(server_id) / f"{workflow_id}.json"
+        workflow_path = get_server_workflow_path(server_id, workflow_id)
+        schema_path = get_server_schema_path(server_id, workflow_id)
         exists = workflow_path.exists() or schema_path.exists()
         if exists and not overwrite_workflows:
             plan.skipped_items.append(PlanItem(
@@ -629,8 +757,7 @@ def apply_bundle_import(
                     if output_dir:
                         target["output_dir"] = output_dir
 
-            get_server_workflows_dir(server_id).mkdir(parents=True, exist_ok=True)
-            get_server_schemas_dir(server_id).mkdir(parents=True, exist_ok=True)
+            get_server_data_dir(server_id).mkdir(parents=True, exist_ok=True)
 
         planned_overwrites = {
             (item.server_id, item.workflow_id)
@@ -654,8 +781,8 @@ def apply_bundle_import(
             schema_payload = copy.deepcopy(workflow.get("schema_data", {}))
             schema_payload["workflow_id"] = workflow_id
 
-            workflow_path = get_server_workflows_dir(server_id) / f"{workflow_id}.json"
-            schema_path = get_server_schemas_dir(server_id) / f"{workflow_id}.json"
+            workflow_path = get_server_workflow_path(server_id, workflow_id)
+            schema_path = get_server_schema_path(server_id, workflow_id)
             _atomic_write_json(workflow_path, workflow_payload)
             _atomic_write_json(schema_path, schema_payload)
 

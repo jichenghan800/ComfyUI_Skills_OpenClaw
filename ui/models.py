@@ -181,3 +181,7 @@ class TransferImportModel(BaseModel):
     bundle: dict[str, Any]
     apply_environment: bool = False
     overwrite_workflows: bool = True
+
+
+class TransferExportModel(BaseModel):
+    selection: dict[str, Any] | None = None

@@ -14,8 +14,10 @@ sys.path.insert(0, str(_project_root / "scripts"))
 
 from shared.config import (
     CONFIG_PATH,
-    get_server_schemas_dir,
-    get_server_workflows_dir,
+    get_server_data_dir,
+    get_server_schema_path,
+    get_server_workflow_path,
+    list_server_workflow_dirs,
 )
 from shared.json_utils import load_json, save_json
 from shared.runtime_config import get_runtime_config
@@ -101,8 +103,7 @@ class UIStorageService:
 
         # Create directories
         sid = server_id
-        get_server_workflows_dir(sid).mkdir(parents=True, exist_ok=True)
-        get_server_schemas_dir(sid).mkdir(parents=True, exist_ok=True)
+        get_server_data_dir(sid).mkdir(parents=True, exist_ok=True)
 
         self.save_config(config)
         return normalized_server
@@ -131,7 +132,7 @@ class UIStorageService:
         self.save_config(config)
 
         if delete_data:
-            server_dir = get_server_workflows_dir(server_id).parent
+            server_dir = get_server_data_dir(server_id)
             if server_dir.exists():
                 shutil.rmtree(server_dir, ignore_errors=False)
 
@@ -150,7 +151,6 @@ class UIStorageService:
         for server in target_servers:
             sid = server.get("id", "")
             sname = server.get("name", sid)
-            schemas_dir = get_server_schemas_dir(sid)
             workflow_order = [
                 str(workflow_id).strip()
                 for workflow_id in server.get("workflow_order", [])
@@ -158,13 +158,13 @@ class UIStorageService:
             ]
             order_index = {workflow_id: index for index, workflow_id in enumerate(workflow_order)}
 
-            if not schemas_dir.exists():
-                continue
-
             server_workflows: list[WorkflowSummary] = []
 
-            for schema_path in schemas_dir.glob("*.json"):
-                wf_id = schema_path.stem
+            for workflow_dir in list_server_workflow_dirs(sid):
+                wf_id = workflow_dir.name
+                schema_path = self._schema_path(sid, wf_id)
+                if not schema_path.exists():
+                    continue
                 enabled = True
                 description = ""
                 try:
@@ -182,7 +182,10 @@ class UIStorageService:
                     server_name=sname,
                     enabled=enabled,
                     description=description,
-                    updated_at=schema_path.stat().st_mtime,
+                    updated_at=max(
+                        schema_path.stat().st_mtime,
+                        self._workflow_path(sid, wf_id).stat().st_mtime if self._workflow_path(sid, wf_id).exists() else 0.0,
+                    ),
                 ))
 
             server_workflows.sort(
@@ -255,9 +258,16 @@ class UIStorageService:
         self._sync_workflow_order(server_id, source_workflow_id, workflow_id)
 
         if source_workflow_id != workflow_id:
-            for obsolete_path in (source_workflow_path, source_schema_path):
-                if obsolete_path.exists():
-                    obsolete_path.unlink()
+            source_dir = source_workflow_path.parent
+            if source_workflow_path.exists():
+                source_workflow_path.unlink()
+            if source_schema_path.exists():
+                source_schema_path.unlink()
+            if source_dir.exists():
+                try:
+                    source_dir.rmdir()
+                except OSError:
+                    pass
 
         return schema
 
@@ -278,9 +288,15 @@ class UIStorageService:
         return schema
 
     def delete_workflow(self, server_id: str, workflow_id: str) -> None:
+        workflow_dir = self._workflow_path(server_id, workflow_id).parent
         for path in (self._workflow_path(server_id, workflow_id), self._schema_path(server_id, workflow_id)):
             if path.exists():
                 path.unlink()
+        if workflow_dir.exists():
+            try:
+                workflow_dir.rmdir()
+            except OSError:
+                pass
         self._remove_workflow_from_order(server_id, workflow_id)
 
     def reorder_workflows(self, server_id: str, workflow_ids: list[str]) -> list[str]:
@@ -304,11 +320,11 @@ class UIStorageService:
 
     @staticmethod
     def _workflow_path(server_id: str, workflow_id: str) -> Path:
-        return get_server_workflows_dir(server_id) / f"{workflow_id}.json"
+        return get_server_workflow_path(server_id, workflow_id)
 
     @staticmethod
     def _schema_path(server_id: str, workflow_id: str) -> Path:
-        return get_server_schemas_dir(server_id) / f"{workflow_id}.json"
+        return get_server_schema_path(server_id, workflow_id)
 
     @staticmethod
     def _slugify_server_id(value: str) -> str:

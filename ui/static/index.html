@@ -297,6 +297,35 @@
     </div>
   </div>
 
+  <div id="transfer-modal-overlay" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal-card transfer-modal-card" role="dialog" aria-modal="true" aria-labelledby="transfer-modal-title">
+      <div class="modal-header">
+        <h3 id="transfer-modal-title" class="card-title">Transfer</h3>
+      </div>
+      <div class="modal-body transfer-modal-body">
+        <section id="transfer-export-panel" class="transfer-panel hidden">
+          <p id="transfer-export-hint" class="transfer-hint">Choose which servers and workflows to export. Everything is selected by default.</p>
+          <p id="transfer-export-summary" class="confirm-modal-message"></p>
+          <div id="transfer-export-tree" class="transfer-export-tree"></div>
+          <div id="transfer-export-warning-list" class="transfer-warning-list hidden"></div>
+        </section>
+
+        <section id="transfer-import-panel" class="transfer-panel hidden">
+          <p id="transfer-import-summary" class="confirm-modal-message"></p>
+          <div id="transfer-import-sections" class="transfer-sections"></div>
+          <label class="checkbox-inline confirm-modal-checkbox" for="transfer-import-apply-environment">
+            <input id="transfer-import-apply-environment" type="checkbox">
+            <span id="transfer-import-apply-environment-label">Also apply environment config</span>
+          </label>
+        </section>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-cancel-transfer-modal" type="button" class="btn btn-secondary" data-i18n="cancel">Cancel</button>
+        <button id="btn-confirm-transfer-modal" type="button" class="btn btn-primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="/static/js/app.js"></script>
 </body>
 

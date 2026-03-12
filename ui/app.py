@@ -22,6 +22,7 @@ try:
         CreateServerModel,
         SchemaModel,
         ServerModel,
+        TransferExportModel,
         ToggleModel,
         TransferImportModel,
         TransferPreviewModel,
@@ -35,6 +36,7 @@ except ImportError:
         CreateServerModel,
         SchemaModel,
         ServerModel,
+        TransferExportModel,
         ToggleModel,
         TransferImportModel,
         TransferPreviewModel,
@@ -48,6 +50,7 @@ from shared.transfer_bundle import (
     apply_bundle_import,
     build_export_bundle,
     preview_bundle_import,
+    summarize_export_bundle,
 )
 
 service = UIStorageService()
@@ -195,8 +198,8 @@ def create_app() -> FastAPI:
     # ── Transfer Bundle ───────────────────────────────────────────
 
     @app.get("/api/transfer/export")
-    async def export_transfer_bundle(portable_only: bool = Query(False)) -> Response:
-        bundle, warnings = build_export_bundle(portable_only=portable_only)
+    async def export_transfer_bundle() -> Response:
+        bundle, warnings = build_export_bundle()
         payload = json.dumps(bundle, ensure_ascii=False, indent=2) + "\n"
         headers = {
             "Content-Disposition": 'attachment; filename="openclaw-skill-export.json"',
@@ -204,6 +207,21 @@ def create_app() -> FastAPI:
         if warnings:
             headers["X-Export-Warnings"] = str(len(warnings))
         return Response(content=payload, media_type="application/json", headers=headers)
+
+    @app.get("/api/transfer/export/preview")
+    async def preview_transfer_export() -> dict:
+        bundle, warnings = build_export_bundle()
+        return summarize_export_bundle(bundle, warnings)
+
+    @app.post("/api/transfer/export/build")
+    async def build_transfer_export(data: TransferExportModel) -> dict:
+        bundle, warnings = build_export_bundle(
+            selection=data.selection,
+        )
+        return {
+            "bundle": bundle,
+            "preview": summarize_export_bundle(bundle, warnings),
+        }
 
     @app.post("/api/transfer/import/preview")
     async def preview_transfer_import(data: TransferPreviewModel) -> dict:

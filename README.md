@@ -214,6 +214,7 @@ If you move this skill to a new path or deploy it on another machine, use the bu
 UI flow:
 
 - Click `Export Config` on the main page to download `openclaw-skill-export.json`
+- Before export, you can expand each server and uncheck workflows you do not want to include; everything is selected by default and servers start collapsed
 - Open the UI on the target machine and click `Import Config`
 - Select the exported JSON bundle
 - Review the preview summary, then decide whether to also apply the source machine's default server, URL, and output directory
@@ -228,7 +229,6 @@ python scripts/transfer_manager.py import --input ./openclaw-skill-export.json
 
 Optional flags:
 
-- `--portable-only`: export without environment-specific runtime fields
 - `--apply-environment`: also apply bundle default server, URL, and output directory during import
 - `--no-overwrite`: skip existing workflows instead of overwriting them
 
@@ -246,7 +246,7 @@ To ensure a workflow can be executed by this project reliably:
 
 1. **Export ComfyUI workflow in API format**
    - In ComfyUI, click **Save (API Format)**.
-   - Use that exported JSON in `data/<server_id>/workflows/<workflow_id>.json`.
+   - Use that exported JSON in `data/<server_id>/<workflow_id>/workflow.json`.
 
 2. **The final output path should include a `Save Image` node**
    - The current client downloads generated results from ComfyUI output images.
@@ -291,10 +291,9 @@ ComfyUI_Skills_OpenClaw/
 │   └── banner-ui-20250309.jpg
 ├── data/
 │   ├── <server_id>/
-│   │   ├── workflows/
-│   │   │   └── <workflow_id>.json  # ComfyUI workflow API export
-│   │   └── schemas/
-│   │       └── <workflow_id>.json  # Exposed parameter mapping
+│   │   └── <workflow_id>/
+│   │       ├── workflow.json       # ComfyUI workflow API export
+│   │       └── schema.json         # Exposed parameter mapping
 ├── scripts/
 │   ├── server_manager.py       # CLI tool for managing servers
 │   ├── registry.py             # List workflows + exposed parameters for agent
