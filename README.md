@@ -32,9 +32,13 @@ Manual install:
 cd ~/.openclaw/workspace/skills
 git clone https://github.com/HuangYuChuh/ComfyUI_Skills_OpenClaw.git comfyui-skill-openclaw
 cd comfyui-skill-openclaw
-pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
 cp config.example.json config.json
 ```
+
+If `pip install` fails on macOS with `externally-managed-environment`, that means your system Python is managed by Homebrew or the OS. Use the virtual environment commands above instead of installing dependencies into the global Python environment.
 
 Let OpenClaw install it for you:
 
