@@ -62,7 +62,7 @@ cp config.example.json config.json
 
 - macOS/Linux：`./ui/run_ui.sh`，或双击 `ui/run_ui.command`
 - Windows：`ui\run_ui.bat`
-- 访问：`http://localhost:8189`
+- 访问：`http://localhost:18189`
 - 上传从 ComfyUI 导出的工作流 JSON，格式必须是 **Save (API Format)**
 - 在 UI 中添加第一个 ComfyUI 服务器
 - 选择要暴露给 OpenClaw 的参数并保存映射
@@ -102,7 +102,6 @@ data/local/Default/
 
 `schema.json` 至少需要包含：
 
-- `workflow_id`
 - `description`
 - `enabled`
 - `parameters`
@@ -111,7 +110,6 @@ data/local/Default/
 
 ```jsonc
 {
-  "workflow_id": "Default",      // 建议与目录名保持一致
   "description": "默认测试工作流", // 给 OpenClaw/Agent 看的工作流说明
   "enabled": true,               // 是否启用这个工作流
   "parameters": {
@@ -135,7 +133,7 @@ data/local/Default/
 
 说明：
 
-- `workflow_id` 建议与目录名保持一致；例如目录是 `data/local/Default/`，这里就写 `Default`
+- 工作流 ID 直接由目录名决定；例如目录是 `data/local/Default/`，工作流 ID 就是 `Default`
 - `parameters` 里的每个字段，表示一个要暴露给 OpenClaw/Agent 的输入参数
 - `node_id` 和 `field` 需要对应到 `workflow.json` 里实际的节点和输入字段
 

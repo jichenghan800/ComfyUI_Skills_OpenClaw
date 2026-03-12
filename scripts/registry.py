@@ -41,7 +41,6 @@ def get_workflows(is_agent=False):
                     schema_data = json.load(f)
 
                 workflow_enabled = schema_data.get("enabled", True)
-                workflow_id = schema_data.get("workflow_id", workflow_id)
                 desc = schema_data.get("description", "")
 
                 # Apply dual-layer switch logic

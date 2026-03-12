@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from shared.config import (
@@ -15,7 +16,18 @@ CONFIG_EXAMPLE_PATH = BASE_DIR / "config.example.json"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 
 DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 8189
+
+
+def _read_default_port() -> int:
+    raw = os.environ.get("OPENCLAW_UI_PORT", "18189").strip()
+    try:
+        port = int(raw)
+    except ValueError:
+        return 18189
+    return port if 1 <= port <= 65535 else 18189
+
+
+DEFAULT_PORT = _read_default_port()
 DEFAULT_COMFYUI_SERVER_URL = "http://127.0.0.1:8188"
 
 

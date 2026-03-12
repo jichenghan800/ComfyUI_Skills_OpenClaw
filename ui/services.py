@@ -171,7 +171,6 @@ class UIStorageService:
                     schema_data = _read_json(schema_path, fallback={})
                     if isinstance(schema_data, dict):
                         enabled = bool(schema_data.get("enabled", True))
-                        wf_id = str(schema_data.get("workflow_id") or wf_id)
                         description = str(schema_data.get("description") or "")
                 except Exception:
                     enabled = True
@@ -210,7 +209,7 @@ class UIStorageService:
             raise ValueError(f"Workflow data is invalid for {workflow_id}")
 
         return {
-            "workflow_id": str(schema_data.get("workflow_id") or workflow_id),
+            "workflow_id": workflow_id,
             "server_id": server_id,
             "description": str(schema_data.get("description") or ""),
             "enabled": bool(schema_data.get("enabled", True)),
@@ -247,7 +246,6 @@ class UIStorageService:
 
         _write_json(workflow_path, workflow_data)
         schema = {
-            "workflow_id": workflow_id,
             "description": description,
             "enabled": enabled,
             "parameters": schema_params,
@@ -280,7 +278,7 @@ class UIStorageService:
         if not isinstance(schema, dict):
             schema = {}
 
-        schema["workflow_id"] = str(schema.get("workflow_id") or workflow_id)
+        schema.pop("workflow_id", None)
         schema["enabled"] = enabled
         schema.setdefault("description", "")
         schema.setdefault("parameters", {})

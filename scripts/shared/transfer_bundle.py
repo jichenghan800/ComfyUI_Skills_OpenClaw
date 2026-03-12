@@ -298,19 +298,10 @@ def _collect_export_inventory() -> tuple[list[dict[str, Any]], list[ValidationIs
                 ))
                 continue
 
-            actual_workflow_id = _normalize_identifier(schema_data.get("workflow_id")) or workflow_id
-            if not _is_valid_identifier(actual_workflow_id):
-                warnings.append(ValidationIssue(
-                    code="invalid_workflow_id",
-                    message="Skipped workflow with invalid workflow id during export.",
-                    context={"server_id": server_id, "workflow_id": actual_workflow_id},
-                ))
-                continue
-
             schema_payload = copy.deepcopy(schema_data)
-            schema_payload["workflow_id"] = actual_workflow_id
+            schema_payload.pop("workflow_id", None)
             server_entry["workflows"].append({
-                "workflow_id": actual_workflow_id,
+                "workflow_id": workflow_id,
                 "workflow_data": workflow_data,
                 "schema_data": schema_payload,
                 "enabled": bool(schema_payload.get("enabled", True)),
@@ -779,7 +770,7 @@ def apply_bundle_import(
 
             workflow_payload = copy.deepcopy(workflow.get("workflow_data", {}))
             schema_payload = copy.deepcopy(workflow.get("schema_data", {}))
-            schema_payload["workflow_id"] = workflow_id
+            schema_payload.pop("workflow_id", None)
 
             workflow_path = get_server_workflow_path(server_id, workflow_id)
             schema_path = get_server_schema_path(server_id, workflow_id)
