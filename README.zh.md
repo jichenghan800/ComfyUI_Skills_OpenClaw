@@ -19,20 +19,58 @@
 
 ## 安装
 
-### 1）环境要求
-
-- Python 3.10+
-- 正在运行的 ComfyUI 服务（默认：`http://127.0.0.1:8188`）
-
-### 2）克隆项目并安装依赖
+### ComfyUI Skills for OpenClaw 安装
 
 ```bash
+cd ~/.openclaw/workspace/skills
 git clone https://github.com/HuangYuChuh/ComfyUI_Skills_OpenClaw.git comfyui-skill-openclaw
 cd comfyui-skill-openclaw
 pip install -r requirements.txt
 ```
 
-### 3）准备运行配置
+安装后的目录示例：
+
+- `~/.openclaw/workspace/skills/comfyui-skill-openclaw/`
+
+OpenClaw 会读取 `SKILL.md`，并调用：
+
+- `scripts/registry.py list --agent`
+- `scripts/comfyui_client.py --workflow ... --args '...json...'`
+
+最小检查清单：
+
+1. 项目放在 `~/.openclaw/workspace/skills/` 下面
+2. 根目录存在 `SKILL.md`
+3. Python 依赖已经安装
+4. `config.json` 指向可访问的 ComfyUI 服务
+5. 至少已经配置了一个工作流和对应参数映射
+
+### 让 OpenClaw 帮你安装
+
+把下面这段话发给 OpenClaw 即可：
+
+```text
+请帮我把这个 ComfyUI skill 安装到我的 OpenClaw workspace 里。
+
+目标路径：
+~/.openclaw/workspace/skills/comfyui-skill-openclaw/
+
+要求：
+1. 先执行 `cd ~/.openclaw/workspace/skills`。
+2. 将这个仓库克隆为 `comfyui-skill-openclaw` 目录。
+3. 保留根目录下的 SKILL.md。
+4. 安装 requirements.txt 里的 Python 依赖。
+5. 如果没有 config.json，就根据 config.example.json 创建一份。
+6. 如果我没有额外指定，就默认把 ComfyUI 地址设置为 http://127.0.0.1:8188。
+7. 安装完成后，确保 OpenClaw 可以发现并调用这个 skill。
+```
+
+### 1）环境要求
+
+- Python 3.10+
+- 正在运行的 ComfyUI 服务（默认：`http://127.0.0.1:8188`）
+
+### 2）准备运行配置
 
 `config.json` 是这个项目的运行时配置。CLI、UI 和 OpenClaw 调用脚本都会读取它。
 
@@ -59,7 +97,7 @@ pip install -r requirements.txt
 ```
 
 
-### 4）启动本地 UI
+### 3）启动本地 UI
 
 - macOS/Linux：
   ```bash
@@ -75,7 +113,7 @@ pip install -r requirements.txt
 
 - `http://localhost:8189`
 
-### 5）添加第一个服务器和工作流
+### 4）添加第一个服务器和工作流
 
 在 UI 里完成这几步：
 
@@ -84,7 +122,7 @@ pip install -r requirements.txt
 3. 选择需要暴露给 OpenClaw 的参数。
 4. 保存工作流映射。
 
-### 6）验证是否安装成功
+### 5）验证是否安装成功
 
 查看工作流列表：
 
@@ -109,52 +147,6 @@ python scripts/comfyui_client.py \
   "images": ["./outputs/<prompt_id>_...png"]
 }
 ```
-
----
-
-## 作为 OpenClaw Skill 安装
-
-把这个项目放到 OpenClaw 工作区的 skill 目录下面：
-
-- `~/.openclaw/workspace/skills/<skill_name>/`
-
-例如：
-
-- `~/.openclaw/workspace/skills/comfyui-agent/`
-
-OpenClaw 会读取 `SKILL.md`，并调用：
-
-- `scripts/registry.py list --agent`
-- `scripts/comfyui_client.py --workflow ... --args '...json...'`
-
-最小检查清单：
-
-1. 项目放在 `~/.openclaw/workspace/skills/` 下面
-2. 根目录存在 `SKILL.md`
-3. Python 依赖已经安装
-4. `config.json` 指向可访问的 ComfyUI 服务
-5. 至少已经配置了一个工作流和对应参数映射
-
-### 让 OpenClaw 帮你安装
-
-把下面这段话发给 OpenClaw 即可：
-
-```text
-请帮我把这个 ComfyUI skill 安装到我的 OpenClaw workspace 里。
-
-目标路径：
-~/.openclaw/workspace/skills/comfyui-agent/
-
-要求：
-1. 把完整项目复制或克隆到这个目录。
-2. 保留根目录下的 SKILL.md。
-3. 安装 requirements.txt 里的 Python 依赖。
-4. 如果没有 config.json，就根据 config.example.json 创建一份。
-5. 如果我没有额外指定，就默认把 ComfyUI 地址设置为 http://127.0.0.1:8188。
-6. 安装完成后，确保 OpenClaw 可以发现并调用这个 skill。
-```
-
----
 
 ## 本地 UI 管理面板
 
@@ -186,6 +178,7 @@ OpenClaw 会读取 `SKILL.md`，并调用：
 - 工作流搜索、排序和拖动排序
 - 上传工作流 JSON 时自动填充 Workflow ID
 - 自定义弹窗、自定义下拉和语言切换
+- 一键导出当前 Skill 配置，并在另一台机器上一键导入恢复
 
 ---
 
@@ -205,6 +198,37 @@ python scripts/server_manager.py add --id cloud --name "Cloud Node" --url http:/
 python scripts/server_manager.py disable cloud
 ```
 *所有服务器配置依然可以通过前端 Web UI 界面来进行图形化无缝管理。*
+
+### 配置迁移（导出 / 导入）
+
+如果你更换了部署路径，或者想把当前 Skill 的工作流映射迁移到另一台机器，可以直接使用内置的 bundle 机制。
+
+UI 方式：
+
+- 在主界面点击 `导出配置`，浏览器会下载一个 `openclaw-skill-export.json`
+- 在目标机器打开 UI，点击 `导入配置`
+- 选择刚才导出的 JSON 文件
+- 系统会先显示预检结果，再确认是否同时应用源机器的默认服务器、URL 和输出目录
+
+CLI 方式：
+
+```bash
+python scripts/transfer_manager.py export --output ./openclaw-skill-export.json
+python scripts/transfer_manager.py import --input ./openclaw-skill-export.json --dry-run
+python scripts/transfer_manager.py import --input ./openclaw-skill-export.json
+```
+
+可选参数：
+
+- `--portable-only`：导出时不包含默认服务器、URL、输出目录等环境配置
+- `--apply-environment`：导入时同时应用 bundle 中的环境配置
+- `--no-overwrite`：导入时如果工作流已存在，则跳过而不是覆盖
+
+默认导入策略：
+
+- 同名工作流默认覆盖
+- 已存在服务器会做合并导入
+- 默认保留目标机器当前的 `url`、`output_dir` 和 `default_server`
 
 ---
 

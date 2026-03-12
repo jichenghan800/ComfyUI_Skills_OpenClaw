@@ -797,6 +797,106 @@ async function loadWorkflows() {
   }
 }
 
+function getTransferErrorMessage(error, fallbackKey) {
+  const issues = error?.detail?.errors || error?.detail?.validation?.errors;
+  if (Array.isArray(issues) && issues.length > 0) {
+    return issues
+      .map((issue) => issue?.message)
+      .filter(Boolean)
+      .join("; ");
+  }
+  return error?.message || t(fallbackKey);
+}
+
+function buildTransferPreviewMessage(plan) {
+  const summary = plan?.summary || {};
+  return t("transfer_preview_summary", {
+    servers: summary.created_servers || 0,
+    updated_servers: summary.updated_servers || 0,
+    created: summary.created_workflows || 0,
+    overwritten: summary.overwritten_workflows || 0,
+    skipped: summary.skipped_items || 0,
+    warnings: summary.warnings || 0,
+  });
+}
+
+function downloadTransferBundle() {
+  const link = document.createElement("a");
+  link.href = "/api/transfer/export";
+  link.download = "openclaw-skill-export.json";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  showToast(t("ok_transfer_export_started"), "success");
+}
+
+async function handleTransferImportFile(file) {
+  if (!file) {
+    return;
+  }
+
+  setBusy(elements.importBundleBtn, true);
+  try {
+    const fileContents = await readFile(file);
+    const bundle = JSON.parse(fileContents);
+    if (!bundle || typeof bundle !== "object" || Array.isArray(bundle)) {
+      throw new Error(t("err_transfer_invalid_bundle"));
+    }
+
+    const preview = await fetchJSON("/api/transfer/import/preview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bundle,
+        apply_environment: false,
+        overwrite_workflows: true,
+      }),
+    });
+
+    const confirmation = await openConfirmModal({
+      message: buildTransferPreviewMessage(preview.plan),
+      confirmLabel: t("import_bundle"),
+      checkbox: {
+        label: t("transfer_apply_environment"),
+        checked: false,
+      },
+    });
+    if (!confirmation.confirmed) {
+      return;
+    }
+
+    const report = await fetchJSON("/api/transfer/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bundle,
+        apply_environment: confirmation.checked,
+        overwrite_workflows: true,
+      }),
+    });
+
+    await loadServers();
+    await loadWorkflows();
+    refreshServerSelector();
+    refreshWorkflowPanel();
+    showToast(t("ok_transfer_import", {
+      servers: report?.plan?.summary?.created_servers || 0,
+      created: report?.plan?.summary?.created_workflows || 0,
+      overwritten: report?.plan?.summary?.overwritten_workflows || 0,
+    }), "success", 4200);
+  } catch (error) {
+    const fallbackKey = error?.message === t("err_transfer_invalid_bundle")
+      ? "err_transfer_invalid_bundle"
+      : error?.detail?.errors || error?.detail?.validation?.errors
+        ? "err_transfer_preview"
+        : "err_transfer_import";
+    showToast(getTransferErrorMessage(error, fallbackKey), "error", 4800);
+  } finally {
+    elements.transferImportFile.val("");
+    setBusy(elements.importBundleBtn, false);
+  }
+}
+
 async function loadWorkflowForEditing(serverId, workflowId, $button) {
   if ($button?.length) {
     $button.prop("disabled", true);
@@ -1067,6 +1167,8 @@ function syncLanguage() {
   setLanguage(currentLanguage);
   elements.langSelect.val(currentLanguage);
   applyTranslations();
+  elements.exportBundleBtn.text(t("export_bundle"));
+  elements.importBundleBtn.text(t("import_bundle"));
   enhanceCustomSelects(document);
   refreshServerModalText();
   refreshServerSelector();
@@ -1531,6 +1633,24 @@ function bindUploadInteractions() {
   });
 }
 
+function bindTransferEvents() {
+  elements.exportBundleBtn.on("click", () => {
+    downloadTransferBundle();
+  });
+
+  elements.importBundleBtn.on("click", async () => {
+    if (isEditorVisible() && !(await exitEditor())) {
+      return;
+    }
+    elements.transferImportFile.val("");
+    elements.transferImportFile.trigger("click");
+  });
+
+  elements.transferImportFile.on("change", async function () {
+    await handleTransferImportFile(this.files?.[0]);
+  });
+}
+
 function bindEvents() {
   elements.langSelect.on("change", function () {
     const nextLanguage = $(this).val();
@@ -1539,6 +1659,8 @@ function bindEvents() {
     }
     setLanguage(nextLanguage);
     applyTranslations();
+    elements.exportBundleBtn.text(t("export_bundle"));
+    elements.importBundleBtn.text(t("import_bundle"));
     enhanceCustomSelects(document);
     refreshServerModalText();
     refreshServerSelector();
@@ -1558,6 +1680,7 @@ function bindEvents() {
   bindMappingToolbarEvents();
   bindEditorShortcuts();
   bindUploadInteractions();
+  bindTransferEvents();
 
   window.addEventListener("beforeunload", (event) => {
     if (!isEditorVisible() || !hasEditorUnsavedChanges) {

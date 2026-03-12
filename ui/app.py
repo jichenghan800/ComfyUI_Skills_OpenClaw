@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from pathlib import Path
@@ -8,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 # Add scripts to path for shared imports
@@ -16,13 +17,38 @@ _project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_project_root / "scripts"))
 
 try:
-    from .models import ConfigModel, CreateServerModel, SchemaModel, ServerModel, ToggleModel, WorkflowOrderModel
+    from .models import (
+        ConfigModel,
+        CreateServerModel,
+        SchemaModel,
+        ServerModel,
+        ToggleModel,
+        TransferImportModel,
+        TransferPreviewModel,
+        WorkflowOrderModel,
+    )
     from .services import UIStorageService
     from .settings import DEFAULT_HOST, DEFAULT_PORT, STATIC_DIR, ensure_runtime_dirs
 except ImportError:
-    from models import ConfigModel, CreateServerModel, SchemaModel, ServerModel, ToggleModel, WorkflowOrderModel
+    from models import (
+        ConfigModel,
+        CreateServerModel,
+        SchemaModel,
+        ServerModel,
+        ToggleModel,
+        TransferImportModel,
+        TransferPreviewModel,
+        WorkflowOrderModel,
+    )
     from services import UIStorageService
     from settings import DEFAULT_HOST, DEFAULT_PORT, STATIC_DIR, ensure_runtime_dirs
+
+from shared.transfer_bundle import (
+    BundleValidationError,
+    apply_bundle_import,
+    build_export_bundle,
+    preview_bundle_import,
+)
 
 service = UIStorageService()
 logger = logging.getLogger(__name__)
@@ -165,6 +191,44 @@ def create_app() -> FastAPI:
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
         return {"status": "success", "workflow_order": workflow_order}
+
+    # ── Transfer Bundle ───────────────────────────────────────────
+
+    @app.get("/api/transfer/export")
+    async def export_transfer_bundle(portable_only: bool = Query(False)) -> Response:
+        bundle, warnings = build_export_bundle(portable_only=portable_only)
+        payload = json.dumps(bundle, ensure_ascii=False, indent=2) + "\n"
+        headers = {
+            "Content-Disposition": 'attachment; filename="openclaw-skill-export.json"',
+        }
+        if warnings:
+            headers["X-Export-Warnings"] = str(len(warnings))
+        return Response(content=payload, media_type="application/json", headers=headers)
+
+    @app.post("/api/transfer/import/preview")
+    async def preview_transfer_import(data: TransferPreviewModel) -> dict:
+        preview = preview_bundle_import(
+            data.bundle,
+            apply_environment=data.apply_environment,
+            overwrite_workflows=data.overwrite_workflows,
+        )
+        if not preview.validation.valid:
+            raise HTTPException(status_code=400, detail=preview.validation.to_dict())
+        return preview.to_dict()
+
+    @app.post("/api/transfer/import")
+    async def import_transfer_bundle(data: TransferImportModel) -> dict:
+        try:
+            report = apply_bundle_import(
+                data.bundle,
+                apply_environment=data.apply_environment,
+                overwrite_workflows=data.overwrite_workflows,
+            )
+        except BundleValidationError as e:
+            raise HTTPException(status_code=400, detail=e.result.to_dict()) from e
+        except RuntimeError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
+        return report.to_dict()
 
     return app
 

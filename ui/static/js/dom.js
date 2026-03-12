@@ -5,6 +5,9 @@ export function getElements() {
     // ── View containers ──
     viewMain: $("#view-main"),
     viewEditor: $("#view-editor"),
+    exportBundleBtn: $("#export-bundle-btn"),
+    importBundleBtn: $("#import-bundle-btn"),
+    transferImportFile: $("#transfer-import-file"),
     // ── Server panel ──
     serverSelector: $("#server-selector"),
     serverEnabledToggle: $("#server-enabled-toggle"),

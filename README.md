@@ -23,20 +23,62 @@ It converts natural language requests into structured skill arguments, maps them
 
 ## Installation
 
-### 1) Requirements
+### Install As An OpenClaw Skill
 
-- Python 3.10+
-- A running ComfyUI server (default: `http://127.0.0.1:8188`)
-
-### 2) Clone and install dependencies
+OpenClaw creates the default skill directory for you. Install this repository by entering that directory first, then cloning the project:
 
 ```bash
+cd ~/.openclaw/workspace/skills
 git clone https://github.com/HuangYuChuh/ComfyUI_Skills_OpenClaw.git comfyui-skill-openclaw
 cd comfyui-skill-openclaw
 pip install -r requirements.txt
 ```
 
-### 3) Prepare runtime config
+Installed path example:
+
+- `~/.openclaw/workspace/skills/comfyui-skill-openclaw/`
+
+OpenClaw will read `SKILL.md` and call:
+
+- `scripts/registry.py list --agent`
+- `scripts/comfyui_client.py --workflow ... --args '...json...'`
+
+Minimal checklist:
+
+1. The project is placed under `~/.openclaw/workspace/skills/`.
+2. `SKILL.md` exists at the project root.
+3. Python dependencies are installed.
+4. `config.json` points to a reachable ComfyUI server.
+5. At least one workflow and schema are configured.
+
+### AI-Native Install Via Agent
+
+You can also ask an OpenClaw Agent to install this skill for you.
+
+Use a prompt like this:
+
+```text
+Please install this ComfyUI skill into my OpenClaw workspace.
+
+Target path:
+~/.openclaw/workspace/skills/comfyui-skill-openclaw/
+
+Requirements:
+1. Run `cd ~/.openclaw/workspace/skills` first.
+2. Clone this repository into `comfyui-skill-openclaw`.
+3. Keep SKILL.md at the project root.
+4. Install Python dependencies from requirements.txt.
+5. Create config.json from config.example.json if missing.
+6. Set the default ComfyUI server URL to http://127.0.0.1:8188 unless I specify another one.
+7. Make sure the skill can be discovered by OpenClaw after installation.
+```
+
+### 1) Requirements
+
+- Python 3.10+
+- A running ComfyUI server (default: `http://127.0.0.1:8188`)
+
+### 2) Prepare runtime config
 
 `config.json` is the runtime config for this project. The CLI, UI, and OpenClaw-facing scripts all use it.
 
@@ -63,7 +105,7 @@ Choose one of these two approaches:
 ```
 
 
-### 4) Start the local UI
+### 3) Start the local UI
 
 - macOS/Linux:
   ```bash
@@ -79,7 +121,7 @@ Then open:
 
 - `http://localhost:8189`
 
-### 5) Add your first server and workflow
+### 4) Add your first server and workflow
 
 In the UI:
 
@@ -88,7 +130,7 @@ In the UI:
 3. Expose the parameters you want the agent to use.
 4. Save the workflow mapping.
 
-### 6) Verify the installation
+### 5) Verify the installation
 
 Check the registry:
 
@@ -113,54 +155,6 @@ If successful, output JSON includes local image path(s), for example:
   "images": ["./outputs/<prompt_id>_...png"]
 }
 ```
-
----
-
-## Install As An OpenClaw Skill
-
-Put this repository under your OpenClaw workspace skill directory:
-
-- `~/.openclaw/workspace/skills/<skill_name>/`
-
-For example:
-
-- `~/.openclaw/workspace/skills/comfyui-agent/`
-
-OpenClaw will read `SKILL.md` and call:
-
-- `scripts/registry.py list --agent`
-- `scripts/comfyui_client.py --workflow ... --args '...json...'`
-
-Minimal checklist:
-
-1. The project is placed under `~/.openclaw/workspace/skills/`.
-2. `SKILL.md` exists at the project root.
-3. Python dependencies are installed.
-4. `config.json` points to a reachable ComfyUI server.
-5. At least one workflow and schema are configured.
-
-### AI-Native Install Via Agent
-
-You can also ask an OpenClaw Agent to install this skill for you.
-
-Use a prompt like this:
-
-```text
-Please install this ComfyUI skill into my OpenClaw workspace.
-
-Target path:
-~/.openclaw/workspace/skills/comfyui-agent/
-
-Requirements:
-1. Copy or clone the full project into that directory.
-2. Keep SKILL.md at the project root.
-3. Install Python dependencies from requirements.txt.
-4. Create config.json from config.example.json if missing.
-5. Set the default ComfyUI server URL to http://127.0.0.1:8188 unless I specify another one.
-6. Make sure the skill can be discovered by OpenClaw after installation.
-```
-
----
 
 ## Local Dashboard (UI)
 
@@ -192,6 +186,7 @@ Current highlights:
 - Workflow search, sort, and drag-to-reorder
 - Upload workflow JSON and auto-fill workflow ID
 - Custom dialogs, dropdowns, and language switching for daily editing
+- One-click export/import for migrating the current skill configuration across machines
 
 ---
 
@@ -211,6 +206,37 @@ python scripts/server_manager.py add --id cloud --name "Cloud Node" --url http:/
 python scripts/server_manager.py disable cloud
 ```
 *You can also manage servers fully via the Web UI.*
+
+### Configuration Migration (Export / Import)
+
+If you move this skill to a new path or deploy it on another machine, use the built-in bundle flow to transfer your current config and workflow mappings.
+
+UI flow:
+
+- Click `Export Config` on the main page to download `openclaw-skill-export.json`
+- Open the UI on the target machine and click `Import Config`
+- Select the exported JSON bundle
+- Review the preview summary, then decide whether to also apply the source machine's default server, URL, and output directory
+
+CLI flow:
+
+```bash
+python scripts/transfer_manager.py export --output ./openclaw-skill-export.json
+python scripts/transfer_manager.py import --input ./openclaw-skill-export.json --dry-run
+python scripts/transfer_manager.py import --input ./openclaw-skill-export.json
+```
+
+Optional flags:
+
+- `--portable-only`: export without environment-specific runtime fields
+- `--apply-environment`: also apply bundle default server, URL, and output directory during import
+- `--no-overwrite`: skip existing workflows instead of overwriting them
+
+Default import behavior:
+
+- Existing workflows with the same ID are overwritten
+- Existing servers are merged instead of replaced
+- The target machine keeps its current `url`, `output_dir`, and `default_server` unless `--apply-environment` is used
 
 ---
 

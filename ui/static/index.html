@@ -27,6 +27,12 @@
         <p class="subtitle" data-i18n="subtitle">Dynamically parse workflow graphs and build visual parameter mappings
           for agents.</p>
       </div>
+      <div class="page-header-actions">
+        <button id="export-bundle-btn" type="button" class="btn btn-secondary panel-action-btn"
+          data-i18n="export_bundle">Export Config</button>
+        <button id="import-bundle-btn" type="button" class="btn btn-secondary panel-action-btn"
+          data-i18n="import_bundle">Import Config</button>
+      </div>
       <label for="lang-select" class="sr-only">Language</label>
       <select id="lang-select" class="lang-select" aria-label="Language selector">
         <option value="en">English</option>
@@ -116,6 +122,7 @@
         </select>
       </div>
       <input id="workflow-version-upload" type="file" accept=".json" class="sr-only">
+      <input id="transfer-import-file" type="file" accept=".json" class="sr-only">
       <div id="workflow-list" class="workflow-list" aria-live="polite"></div>
     </section>
   </main>
