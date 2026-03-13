@@ -6,6 +6,7 @@ import argparse
 import urllib.request
 import urllib.parse
 import sys
+import re
 from logging import getLogger
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -41,6 +42,33 @@ def parse_workflow_arg(workflow_arg: str) -> tuple[str, str]:
         return parts[0], parts[1]
     else:
         return get_default_server_id(), workflow_arg
+
+
+def sanitize_filename_part(value: str, fallback: str) -> str:
+    """Build a readable, filesystem-safe filename component."""
+    normalized = re.sub(r"[^A-Za-z0-9._-]+", "-", (value or "").strip())
+    normalized = re.sub(r"-{2,}", "-", normalized).strip("._-")
+    return normalized or fallback
+
+
+def get_output_prefix(workflow_id: str, input_args: dict, parameters: dict) -> str:
+    """Prefer an explicit filename_prefix arg, otherwise fall back to workflow_id."""
+    for key, param in parameters.items():
+        if param.get("field") == "filename_prefix" and key in input_args:
+            return sanitize_filename_part(str(input_args[key]), workflow_id)
+
+    raw_prefix = input_args.get("filename_prefix")
+    if raw_prefix is not None:
+        return sanitize_filename_part(str(raw_prefix), workflow_id)
+
+    return sanitize_filename_part(workflow_id, "image")
+
+
+def build_output_filename(prefix: str, timestamp: str, index: int, original_filename: str) -> str:
+    """Create a stable, readable local filename for downloaded images."""
+    _, ext = os.path.splitext(original_filename)
+    ext = ext or ".png"
+    return f"{prefix}_{timestamp}_{index:02d}{ext}"
 
 
 def queue_prompt(server_url, prompt_workflow):
@@ -156,6 +184,8 @@ def main():
 
                 workflow_data[node_id]["inputs"][field] = value
 
+    output_prefix = get_output_prefix(workflow_id, input_args, parameters)
+
     # 6. Queue Prompt
     queue_res = queue_prompt(server_url, workflow_data)
     if not queue_res or 'prompt_id' not in queue_res:
@@ -178,6 +208,8 @@ def main():
         return
 
     downloaded_files = []
+    run_timestamp = f"{time.strftime('%Y%m%d-%H%M%S')}-{int((time.time() % 1) * 1000):03d}"
+    image_index = 1
 
     for node_id, node_output in job_info['outputs'].items():
         if 'images' in node_output:
@@ -188,10 +220,17 @@ def main():
 
                 img_data = get_image(server_url, filename, subfolder, folder_type)
                 if img_data:
-                    local_filepath = os.path.join(output_dir, f"{prompt_id}_{node_id}_{filename}")
+                    local_filename = build_output_filename(
+                        output_prefix,
+                        run_timestamp,
+                        image_index,
+                        filename,
+                    )
+                    local_filepath = os.path.join(output_dir, local_filename)
                     with open(local_filepath, "wb") as f:
                         f.write(img_data)
                     downloaded_files.append(local_filepath)
+                    image_index += 1
 
     # Output the JSON result
     print(json.dumps({
