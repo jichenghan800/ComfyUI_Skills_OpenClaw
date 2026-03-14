@@ -7,17 +7,17 @@
   </a>
 </p>
 
-This project is a ComfyUI skill integration layer for OpenClaw. It turns the workflows you build and export from ComfyUI in API format into callable skills that OpenClaw can trigger with natural language.
+This project is a ComfyUI skill integration layer for OpenClaw, Codex, and Claude Code. It turns the workflows you build and export from ComfyUI in API format into callable skills that these agents can trigger with natural language.
 
 It converts natural language requests into structured skill arguments, maps them to ComfyUI workflow inputs, submits jobs to ComfyUI, waits for completion, then pulls generated images back to local disk.
 
 For the upstream ComfyUI local server routes that back this skill, see [docs/comfyui-native-routes.md](./docs/comfyui-native-routes.md).
 
-## What This Skill Can Do
+## Features
 
-- Turn your existing ComfyUI workflows into skills that OpenClaw can call directly
-- Let OpenClaw call workflows deployed across different ComfyUI servers instead of being tied to a single machine
-- Reuse the parameters you already exposed so OpenClaw can understand what each workflow expects
+- Turn your existing ComfyUI workflows into skills that OpenClaw, Codex, or Claude Code can call directly
+- Let these agents call workflows deployed across different ComfyUI servers instead of being tied to a single machine
+- Reuse the parameters you already exposed so the agent can understand what each workflow expects
 - Upload a workflow once, manage it in the UI, and reuse it without rebuilding the setup
 - Submit jobs to ComfyUI, wait for completion, and pull generated images back to local storage
 
@@ -55,7 +55,7 @@ python3 -m pip install -r requirements.txt
 cp config.example.json config.json
 ```
 
-If `pip install` fails on macOS with `externally-managed-environment`, that means your system Python is managed by Homebrew or the OS. Use the virtual environment commands above instead of installing dependencies into the global Python environment.
+
 
 Let OpenClaw install it for you:
 
@@ -79,11 +79,89 @@ Requirements:
 
 </details>
 
-## How to Configure ComfyUI Workflows
+<details>
+<summary><strong>ComfyUI Skills for Claude Code</strong></summary>
+
+Manual install:
+
+```bash
+cd ~/.claude/skills
+git clone https://github.com/HuangYuChuh/ComfyUI_Skills_OpenClaw.git comfyui-skill
+cd comfyui-skill
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+cp config.example.json config.json
+```
+
+
+
+Let Claude Code install it for you:
+
+Send this prompt to Claude Code:
+
+```text
+Please install this ComfyUI skill into my Claude Code skills directory.
+
+Target path:
+~/.claude/skills/comfyui-skill/
+
+Requirements:
+1. Run `cd ~/.claude/skills` first (create the directory if it doesn't exist).
+2. Clone this repository into `comfyui-skill`.
+3. Keep SKILL.md at the project root.
+4. Install Python dependencies from requirements.txt.
+5. Run `cp config.example.json config.json`.
+6. Set the default ComfyUI server URL to http://127.0.0.1:8188 unless I specify another one.
+7. Make sure Claude Code can discover and call this skill after installation.
+```
+
+</details>
+
+<details>
+<summary><strong>ComfyUI Skills for Codex</strong></summary>
+
+Manual install:
+
+```bash
+cd ~/.codex/skills
+git clone https://github.com/HuangYuChuh/ComfyUI_Skills_OpenClaw.git comfyui-skill
+cd comfyui-skill
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+cp config.example.json config.json
+```
+
+
+
+Let Codex install it for you:
+
+Send this prompt to Codex:
+
+```text
+Please install this ComfyUI skill into my Codex skills directory.
+
+Target path:
+~/.codex/skills/comfyui-skill/
+
+Requirements:
+1. Run `cd ~/.codex/skills` first (create the directory if it doesn't exist).
+2. Clone this repository into `comfyui-skill`.
+3. Keep SKILL.md at the project root.
+4. Install Python dependencies from requirements.txt.
+5. Run `cp config.example.json config.json`.
+6. Set the default ComfyUI server URL to http://127.0.0.1:8188 unless I specify another one.
+7. Make sure Codex can discover and call this skill after installation.
+```
+
+</details>
+
+## ComfyUI Workflow Setup
 
 Before you start, make sure your ComfyUI server is already running. The default local address is `http://127.0.0.1:8188`.
 
-### I. Configure Through the UI (Recommended)
+### UI Setup (Recommended)
 
 - macOS/Linux: `./ui/run_ui.sh`, or double-click `ui/run_ui.command`
 - Windows: `ui\run_ui.bat`
@@ -92,7 +170,7 @@ Before you start, make sure your ComfyUI server is already running. The default 
 - Add your first ComfyUI server in the UI
 - Select which parameters should be exposed to OpenClaw and save the mapping
 
-### II. Configure Through Config Files
+### Config File Setup
 
 #### 1) Edit `config.json`
 
@@ -202,13 +280,13 @@ On success, the output looks like this:
 }
 ```
 
-### III. Let OpenClaw/Agent Configure It For You
+### Agent-Assisted Setup
 
 - Let OpenClaw or another agent edit `config.json`
 - Let the agent write `workflow.json` and `schema.json` into the target workflow directory
 - After writing the files, let the agent run a verification step
 
-### Workflow Requirements (Important)
+### Workflow Requirements
 
 **An API-format workflow plus a `Save Image` output node** is the baseline requirement for stable use. To avoid failed or empty runs:
 
@@ -239,7 +317,7 @@ python scripts/server_manager.py disable remote
 ```
 *You can still manage all server settings through the web UI.*
 
-### Configuration Migration (Export / Import)
+### Configuration Migration
 
 If you move this skill to another path or another machine, use the built-in bundle flow to transfer the current configuration and workflow mappings.
 

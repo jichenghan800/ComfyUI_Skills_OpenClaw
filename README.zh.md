@@ -1,7 +1,7 @@
 # ComfyUI Skills for OpenClaw
 
 ![ComfyUI Skills Banner](./asset/banner-ui-20250309.jpg)
-这是一个面向 OpenClaw 的 ComfyUI Skill 集成层：支持调用你在 ComfyUI 中自行编排并导出（API格式）的 Workflow，将其封装为可被 OpenClaw 通过自然语言触发的 Skills。
+这是一个面向 OpenClaw、Codex 和 Claude Code 的 ComfyUI Skill 集成层：支持调用你在 ComfyUI 中自行编排并导出（API格式）的 Workflow，将其封装为可被这些 Agent 通过自然语言触发的 Skills。
 
 它会把自然语言请求转成结构化的 Skill 参数，映射到 ComfyUI 工作流输入后提交执行，等待任务完成并将生成图片下载到本地。
 
@@ -9,11 +9,11 @@
 
 ---
 
-## 这个 Skill 能做什么
+## 功能特性
 
-- 把你已经在 ComfyUI 里做好的工作流，整理成 OpenClaw 可以直接调用的技能
-- 让 OpenClaw 去调用部署在不同 ComfyUI 服务器上的工作流，而不是只绑定在一台机器上
-- 把工作流里需要填写的参数整理出来，方便 OpenClaw 更稳定地理解和复用
+- 把你已经在 ComfyUI 里做好的工作流，整理成 OpenClaw、Codex 或 Claude Code 可以直接调用的技能
+- 让这些 Agent 去调用部署在不同 ComfyUI 服务器上的工作流，而不是只绑定在一台机器上
+- 把工作流里需要填写的参数整理出来，方便 Agent 更稳定地理解和复用
 - 工作流上传一次后，就可以在 UI 里持续管理，而不是每次都重新手动整理
 - 提交任务、等待完成、拉回生成结果，这条链路可以直接复用到日常使用里
 
@@ -51,7 +51,7 @@ python3 -m pip install -r requirements.txt
 cp config.example.json config.json
 ```
 
-如果你在 macOS 上执行 `pip install` 或 `python3 -m pip install` 时遇到 `externally-managed-environment`，说明当前 Python 环境由 Homebrew 或系统管理，不能直接往全局环境安装依赖。此时请直接使用上面的虚拟环境安装方式。
+
 
 让 OpenClaw 帮你安装：
 
@@ -75,11 +75,89 @@ cp config.example.json config.json
 
 </details>
 
-## 如何配置 ComfyUI 工作流
+<details>
+<summary><strong>ComfyUI Skills for Claude Code</strong></summary>
+
+手动安装：
+
+```bash
+cd ~/.claude/skills
+git clone https://github.com/HuangYuChuh/ComfyUI_Skills_OpenClaw.git comfyui-skill
+cd comfyui-skill
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+cp config.example.json config.json
+```
+
+
+
+让 Claude Code 帮你安装：
+
+把下面这段话发给 Claude Code 即可：
+
+```text
+请帮我把这个 ComfyUI skill 安装到我的 Claude Code skills 目录里。
+
+目标路径：
+~/.claude/skills/comfyui-skill/
+
+要求：
+1. 先执行 `cd ~/.claude/skills`（如果目录不存在请先创建）。
+2. 将这个仓库克隆为 `comfyui-skill` 目录。
+3. 保留根目录下的 SKILL.md。
+4. 安装 requirements.txt 里的 Python 依赖。
+5. 执行 `cp config.example.json config.json`。
+6. 如果我没有额外指定，就默认把 ComfyUI 地址设置为 http://127.0.0.1:8188。
+7. 安装完成后，确保 Claude Code 可以发现并调用这个 skill。
+```
+
+</details>
+
+<details>
+<summary><strong>ComfyUI Skills for Codex</strong></summary>
+
+手动安装：
+
+```bash
+cd ~/.codex/skills
+git clone https://github.com/HuangYuChuh/ComfyUI_Skills_OpenClaw.git comfyui-skill
+cd comfyui-skill
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
+cp config.example.json config.json
+```
+
+
+
+让 Codex 帮你安装：
+
+把下面这段话发给 Codex 即可：
+
+```text
+请帮我把这个 ComfyUI skill 安装到我的 Codex skills 目录里。
+
+目标路径：
+~/.codex/skills/comfyui-skill/
+
+要求：
+1. 先执行 `cd ~/.codex/skills`（如果目录不存在请先创建）。
+2. 将这个仓库克隆为 `comfyui-skill` 目录。
+3. 保留根目录下的 SKILL.md。
+4. 安装 requirements.txt 里的 Python 依赖。
+5. 执行 `cp config.example.json config.json`。
+6. 如果我没有额外指定，就默认把 ComfyUI 地址设置为 http://127.0.0.1:8188。
+7. 安装完成后，确保 Codex 可以发现并调用这个 skill。
+```
+
+</details>
+
+## 配置 ComfyUI 工作流
 
 开始配置前，请先确保 ComfyUI 服务已经运行，本地 ComfyUI 默认地址是 `http://127.0.0.1:8188`。
 
-### I. 通过 UI 配置（推荐）
+### 通过 UI 配置（推荐）
 
 - macOS/Linux：`./ui/run_ui.sh`，或双击 `ui/run_ui.command`
 - Windows：`ui\run_ui.bat`
@@ -88,7 +166,7 @@ cp config.example.json config.json
 - 在 UI 中添加第一个 ComfyUI 服务器
 - 选择要暴露给 OpenClaw 的参数并保存映射
 
-### II. 通过配置文件配置
+### 通过配置文件配置
 
 #### 1）编辑 `config.json`
 
@@ -198,13 +276,13 @@ python scripts/comfyui_client.py \
 }
 ```
 
-### III. 通过 OpenClaw/Agent 帮你配置
+### 通过 Agent 配置
 
 - 让 OpenClaw 或其他 Agent 帮你编辑 `config.json`
 - 让 Agent 将 workflow JSON 和 schema JSON 写入对应目录
 - 写入完成后，再让 Agent 帮你执行一次验证
 
-### 工作流要求（重要）
+### 工作流要求
 
 **API 格式工作流 + Save Image 输出节点** 是稳定可用的基础要求。为了稳定执行，请确保：
 
@@ -236,7 +314,7 @@ python scripts/server_manager.py disable remote
 ```
 *所有服务器配置依然可以通过前端 Web UI 界面来进行图形化无缝管理。*
 
-### 配置迁移（导出 / 导入）
+### 配置迁移
 
 如果你更换了部署路径，或者想把当前 Skill 的工作流映射迁移到另一台机器，可以直接使用内置的 bundle 机制。
 
@@ -277,7 +355,7 @@ python scripts/transfer_manager.py import --input ./openclaw-skill-export.json
 
 ---
 
-## Roadmap
+## 路线图
 
 - [ ] 支持工作流版本历史和回滚
 - [x] 上传新版本前先预览参数变化
