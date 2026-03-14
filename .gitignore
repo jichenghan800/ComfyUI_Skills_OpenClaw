@@ -40,6 +40,9 @@ eggs/
 *.swp
 *.swo
 
+# Claude Code
+.claude/
+
 # Node
 node_modules/
 npm-debug.log
