@@ -1,6 +1,6 @@
 ---
 name: comfyui-skill-openclaw
-description: Execute real ComfyUI image generation for user requests. Use when the user asks to generate an image, draw a picture, or run a ComfyUI workflow. On trigger, read this SKILL.md, run the registry and client scripts from this skill directory, and return the generated image path. Do not stop at writing prompts or claiming success without executing the commands.
+description: Execute real ComfyUI image generation for user requests. Use when the user asks to generate an image, draw a picture, or run a ComfyUI workflow. On trigger, immediately read this SKILL.md, then run the registry and client scripts from this skill directory before sending any user-facing completion text. Return the generated image path. Do not stop at writing prompts, promising execution, or claiming success without executing the commands.
 homepage: https://github.com/HuangYuChuh/ComfyUI_Skills_OpenClaw
 metadata: { "openclaw": { "emoji": "🖼️", "requires": { "bins": ["python3"] } } }
 ---
@@ -18,6 +18,28 @@ When this skill matches the request:
 3. Do not answer with only prompt suggestions, workflow ideas, or "I have submitted it" unless a command was actually executed successfully.
 4. If the user already gave enough information for a reasonable default run, prefer executing immediately instead of asking more questions.
 5. Only say the generation is complete after `comfyui_client.py` returns JSON success with an `images` array.
+6. If tool use is available and the request already contains enough information, your first response in the turn must be tool use, not a natural-language acknowledgement.
+
+## First Response Rule
+
+When the user already gave enough detail to run a reasonable default image generation:
+
+- do not first reply with "已收到", "我来执行", "开始了", or any similar status text
+- first use tools to read this file and execute the commands
+- only send user-facing text after the registry and client command have either succeeded or failed
+
+Bad:
+
+- "我这就开始跑，完成后给你结果"
+- "已开始执行"
+- "我会直接执行"
+
+Good:
+
+- `read` this skill
+- `exec` the registry command
+- `exec` the client command
+- then return either the image path or the real error
 
 ### UI Management Shortcut
 
