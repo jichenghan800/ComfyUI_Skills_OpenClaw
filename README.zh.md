@@ -274,24 +274,29 @@ data/local/Default/
 查看工作流列表：
 
 ```bash
-python scripts/registry.py list
+python3 scripts/registry.py list
 ```
 
 执行一次测试生图：
 
 ```bash
-python scripts/comfyui_client.py \
-  --workflow <server_id>/<workflow_id> \
+python3 scripts/comfyui_client.py \
+  --workflow <server_id>/<workflow_id_from_list> \
   --args '{"prompt":"test"}'
 ```
 
 例如：
 
 ```bash
-python scripts/comfyui_client.py \
-  --workflow local/Default \
+python3 scripts/comfyui_client.py \
+  --workflow local/<workflow_id_from_list> \
   --args '{"prompt":"一张高质感产品摄影图"}'
 ```
+
+说明：
+
+- 不要假设一定存在 `local/Default`，应以 `registry.py list` 返回的工作流 ID 为准。
+- 如果保存下来的 schema 里还是 `prompt_23` 这类自动生成参数名，客户端也支持用 `prompt`、`negative_prompt`、`seed`、`width`、`height`、`filename_prefix` 这些规范化别名来调用。
 
 成功后会返回类似：
 
@@ -465,5 +470,6 @@ ComfyUI_Skills_OpenClaw/
 - 项目摘要：`docs/llms.txt`
 - 项目扩展上下文：`docs/llms-full.txt`
 - 项目传播清单：`docs/PROJECT_DISCOVERY_CHECKLIST.md`
+- OpenClaw 端到端修复记录：`docs/openclaw-e2e-fix-notes.md`
 
 </details>

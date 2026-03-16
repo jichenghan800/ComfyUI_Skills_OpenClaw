@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from shared.config import get_server_schema_path, list_server_workflow_dirs
 from shared.runtime_config import get_runtime_config
+from shared.schema_aliases import get_display_parameter_name
 
 
 def get_workflows(is_agent=False):
@@ -64,7 +65,8 @@ def get_workflows(is_agent=False):
                         continue
                     workflow_info["parameters"] = {}
                     for param_key, param_info in schema_data.get("parameters", {}).items():
-                        workflow_info["parameters"][param_key] = {
+                        display_key = get_display_parameter_name(param_key, schema_data.get("parameters", {}))
+                        workflow_info["parameters"][display_key] = {
                             "type": param_info.get("type", "string"),
                             "required": param_info.get("required", False),
                             "description": param_info.get("description", ""),

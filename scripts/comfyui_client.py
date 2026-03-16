@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import json
 import uuid
@@ -13,7 +15,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from shared.config import get_server_schema_path, get_server_workflow_path
 from shared.json_utils import load_json
-from shared.runtime_config import get_runtime_config, get_server_by_id, get_default_server_id
+from shared.runtime_config import get_server_by_id, get_default_server_id
+from shared.schema_aliases import build_unique_parameter_alias_map, get_display_parameter_name
 
 logger = getLogger(__name__)
 
@@ -69,6 +72,52 @@ def build_output_filename(prefix: str, timestamp: str, index: int, original_file
     _, ext = os.path.splitext(original_filename)
     ext = ext or ".png"
     return f"{prefix}_{timestamp}_{index:02d}{ext}"
+
+
+def coerce_parameter_value(value, param_type: str):
+    if param_type == "int":
+        return int(value)
+    if param_type == "float":
+        return float(value)
+    if param_type == "boolean":
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return bool(value)
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "1", "yes", "on"}:
+                return True
+            if normalized in {"false", "0", "no", "off"}:
+                return False
+        raise ValueError(f"Cannot coerce value '{value}' to boolean")
+    return value
+
+
+def resolve_input_args(parameters: dict, input_args: dict) -> tuple[dict, list[str], str | None]:
+    alias_map = build_unique_parameter_alias_map(parameters)
+    resolved_args: dict = {}
+    unknown_keys: list[str] = []
+    seen_inputs_for_target: dict[str, str] = {}
+
+    for input_key, value in input_args.items():
+        target_key = input_key
+        if input_key not in parameters:
+            target_key = alias_map.get(input_key, "")
+
+        if not target_key:
+            unknown_keys.append(input_key)
+            continue
+
+        previous_source = seen_inputs_for_target.get(target_key)
+        if previous_source and previous_source != input_key:
+            display_name = get_display_parameter_name(target_key, parameters)
+            return {}, [], f"Duplicate values provided for parameter '{display_name}'"
+
+        seen_inputs_for_target[target_key] = input_key
+        resolved_args[target_key] = value
+
+    return resolved_args, unknown_keys, None
 
 
 def queue_prompt(server_url, prompt_workflow):
@@ -146,6 +195,10 @@ def main():
         print(json.dumps({"error": "Invalid JSON format for --args"}))
         return
 
+    if not isinstance(input_args, dict):
+        print(json.dumps({"error": "--args must decode to a JSON object"}))
+        return
+
     # 4. Load Workflow and Schema from server-specific directory
     wf_path = str(get_server_workflow_path(server_id, workflow_id))
     schema_path = str(get_server_schema_path(server_id, workflow_id))
@@ -167,24 +220,50 @@ def main():
         return
 
     parameters = schema_data.get("parameters", {})
+    resolved_args, unknown_keys, resolve_error = resolve_input_args(parameters, input_args)
+    if resolve_error:
+        print(json.dumps({"error": resolve_error}))
+        return
+
+    if unknown_keys:
+        print(json.dumps({
+            "error": "Unknown workflow parameter(s)",
+            "unknown": unknown_keys,
+        }))
+        return
+
+    missing_required = [
+        get_display_parameter_name(param_key, parameters)
+        for param_key, param_info in parameters.items()
+        if param_info.get("required", False) and param_key not in resolved_args
+    ]
+    if missing_required:
+        print(json.dumps({
+            "error": "Missing required workflow parameter(s)",
+            "missing": missing_required,
+        }))
+        return
 
     # 5. Map parameters to workflow nodes
-    for key, value in input_args.items():
+    for key, value in resolved_args.items():
         if key in parameters:
             node_id = str(parameters[key]["node_id"])
             field = parameters[key]["field"]
             if node_id in workflow_data and "inputs" in workflow_data[node_id]:
                 param_type = parameters[key].get("type", "string")
-                if param_type == "int":
-                    value = int(value)
-                elif param_type == "float":
-                    value = float(value)
-                elif param_type == "boolean":
-                    value = bool(value)
+                try:
+                    value = coerce_parameter_value(value, param_type)
+                except (TypeError, ValueError):
+                    display_name = get_display_parameter_name(key, parameters)
+                    print(json.dumps({
+                        "error": f"Invalid value for parameter '{display_name}'",
+                        "expected_type": param_type,
+                    }))
+                    return
 
                 workflow_data[node_id]["inputs"][field] = value
 
-    output_prefix = get_output_prefix(workflow_id, input_args, parameters)
+    output_prefix = get_output_prefix(workflow_id, resolved_args, parameters)
 
     # 6. Queue Prompt
     queue_res = queue_prompt(server_url, workflow_data)

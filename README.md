@@ -278,24 +278,29 @@ If you want a full example, refer to:
 List the available workflows:
 
 ```bash
-python scripts/registry.py list
+python3 scripts/registry.py list
 ```
 
 Run a test generation:
 
 ```bash
-python scripts/comfyui_client.py \
-  --workflow <server_id>/<workflow_id> \
+python3 scripts/comfyui_client.py \
+  --workflow <server_id>/<workflow_id_from_list> \
   --args '{"prompt":"test"}'
 ```
 
 Example:
 
 ```bash
-python scripts/comfyui_client.py \
-  --workflow local/Default \
+python3 scripts/comfyui_client.py \
+  --workflow local/<workflow_id_from_list> \
   --args '{"prompt":"A premium product photo"}'
 ```
+
+Notes:
+
+- Do not assume `local/Default` exists. Use the exact workflow ID returned by `registry.py list`.
+- If a saved schema still uses auto-generated keys such as `prompt_23`, the client also accepts normalized aliases such as `prompt`, `negative_prompt`, `seed`, `width`, `height`, and `filename_prefix`.
 
 On success, the output looks like this:
 
@@ -468,5 +473,6 @@ Core files for project understanding and retrieval:
 - Project summary: `docs/llms.txt`
 - Extended project context: `docs/llms-full.txt`
 - Project discovery checklist: `docs/PROJECT_DISCOVERY_CHECKLIST.md`
+- OpenClaw end-to-end fix notes: `docs/openclaw-e2e-fix-notes.md`
 
 </details>

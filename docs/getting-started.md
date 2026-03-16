@@ -65,18 +65,19 @@ cp config.example.json config.json</code></pre>
       <div>
         <p>First list the registered workflows:</p>
         <div class="code-panel">
-          <pre><code>python scripts/registry.py list</code></pre>
+          <pre><code>python3 scripts/registry.py list</code></pre>
         </div>
       </div>
       <div>
         <p>Then run a real generation test:</p>
         <div class="code-panel">
-          <pre><code>python scripts/comfyui_client.py \
-  --workflow local/Default \
+          <pre><code>python3 scripts/comfyui_client.py \
+  --workflow local/&lt;workflow_id_from_list&gt; \
   --args '{"prompt":"A premium product photo"}'</code></pre>
         </div>
       </div>
     </div>
+    <p class="highlight-line">Use the exact workflow ID returned by <code>registry.py list</code>. Do not assume <code>local/Default</code> exists on your machine.</p>
     <p>Successful runs return a <code>prompt_id</code> and one or more local image paths in <code>./outputs</code>.</p>
   </section>
 
